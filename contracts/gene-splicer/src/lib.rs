@@ -1,8 +1,25 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, token, Address, Env, Symbol, Vec,
+    contract, contractimpl, contracttype, token, Address, Env, Symbol, Vec, Bytes,
 };
+
+/// Gene rarity levels (affects visual appearance and value)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum GeneRarity {
+    Normal,    // 60% chance (IDs 0-5)
+    Rare,      // 30% chance (IDs 6-8)
+    Legendary, // 10% chance (ID 9)
+}
+
+/// Individual gene with ID and rarity
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Gene {
+    pub id: u32,
+    pub rarity: GeneRarity,
+}
 
 /// Genome Cartridge NFT - minted when user splices, before finalization
 #[contracttype]
@@ -13,6 +30,31 @@ pub struct GenomeCartridge {
     pub skin_id: u32,      // Random cosmetic skin selected via PRNG
     pub splice_round: u64, // Drand round for later entropy use
     pub created_at: u64,   // Ledger timestamp
+    pub finalized: bool,   // Whether cartridge has been transformed into a Creature
+}
+
+/// Creature NFT - final form after finalization with entropy
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Creature {
+    pub id: u32,              // Same ID as the cartridge it came from
+    pub owner: Address,
+    pub skin_id: u32,         // Inherited from cartridge
+    pub head_gene: Gene,      // Head gene (1 of 10)
+    pub torso_gene: Gene,     // Torso gene (1 of 10)
+    pub legs_gene: Gene,      // Legs gene (1 of 10)
+    pub finalized_at: u64,    // Ledger timestamp of finalization
+    pub entropy_round: u64,   // Drand round used for gene selection
+}
+
+/// Drand entropy data for a specific round
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EntropyData {
+    pub round: u64,
+    pub randomness: Bytes,    // 32-byte randomness from drand
+    pub signature: Bytes,     // BLS signature (not verified in Phase 2)
+    pub submitted_at: u64,    // Ledger timestamp
 }
 
 /// Storage keys for the contract
@@ -20,11 +62,14 @@ pub struct GenomeCartridge {
 #[derive(Clone)]
 pub enum DataKey {
     Admin,
-    XlmToken,              // Address of native XLM SAC token
-    CartridgeSkinCount,    // Total number of skin variants available
-    NextCartridgeId,       // Counter for minting new cartridges
-    Cartridge(u32),        // Cartridge ID -> GenomeCartridge data
+    XlmToken,                // Address of native XLM SAC token
+    CartridgeSkinCount,      // Total number of skin variants available
+    NextCartridgeId,         // Counter for minting new cartridges
+    Cartridge(u32),          // Cartridge ID -> GenomeCartridge data
     UserCartridges(Address), // User -> Vec<u32> of cartridge IDs
+    Entropy(u64),            // Drand round -> EntropyData
+    Creature(u32),           // Creature ID -> Creature data (same ID as cartridge)
+    UserCreatures(Address),  // User -> Vec<u32> of creature IDs
 }
 
 #[contract]
@@ -72,7 +117,24 @@ impl GeneSplicer {
         // Transfer 1 XLM (10_000_000 stroops) from user to admin
         let xlm_client = token::Client::new(&env, &xlm_token);
         let fee_amount: i128 = 10_000_000; // 1 XLM = 10^7 stroops
+
+        // Verify user has sufficient balance before attempting transfer
+        let user_balance = xlm_client.balance(&user);
+        if user_balance < fee_amount {
+            panic!("Insufficient XLM balance for minting fee");
+        }
+
+        // Get balances before transfer for verification
+        let admin_balance_before = xlm_client.balance(&admin);
+
+        // Execute transfer - will panic if it fails for any reason
         xlm_client.transfer(&user, &admin, &fee_amount);
+
+        // Verify transfer succeeded by checking admin received the funds
+        let admin_balance_after = xlm_client.balance(&admin);
+        if admin_balance_after != admin_balance_before + fee_amount {
+            panic!("Transfer verification failed");
+        }
 
         // Generate random skin ID using PRNG (u64 for GenRange compatibility)
         let skin_id: u64 = env.prng().gen_range(0..skin_count);
@@ -103,6 +165,7 @@ impl GeneSplicer {
             skin_id,
             splice_round,
             created_at: ledger_time,
+            finalized: false,
         };
 
         // Store cartridge data
@@ -178,6 +241,174 @@ impl GeneSplicer {
             .instance()
             .get(&DataKey::CartridgeSkinCount)
             .unwrap()
+    }
+
+    /// Submit entropy for a drand round (Phase 2: no verification)
+    /// In Phase 3, this will verify the BLS signature using CAP-0059
+    pub fn submit_entropy(
+        env: Env,
+        submitter: Address,
+        round: u64,
+        randomness: Bytes,
+        signature: Bytes,
+    ) {
+        submitter.require_auth();
+
+        // Check if entropy already exists for this round
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Entropy(round))
+        {
+            panic!("Entropy already submitted for this round");
+        }
+
+        // Validate randomness is 32 bytes
+        if randomness.len() != 32 {
+            panic!("Randomness must be 32 bytes");
+        }
+
+        // Phase 2: Accept entropy without verification
+        // Phase 3 TODO: Verify BLS signature using CAP-0059
+
+        let entropy = EntropyData {
+            round,
+            randomness,
+            signature,
+            submitted_at: env.ledger().timestamp(),
+        };
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Entropy(round), &entropy);
+
+        // Emit event
+        env.events().publish(
+            (Symbol::new(&env, "entropy_submitted"), round),
+            submitter,
+        );
+    }
+
+    /// Finalize a cartridge into a Creature NFT using drand entropy
+    pub fn finalize_splice(env: Env, cartridge_id: u32) -> u32 {
+        // Get cartridge
+        let mut cartridge: GenomeCartridge = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Cartridge(cartridge_id))
+            .unwrap_or_else(|| panic!("Cartridge not found"));
+
+        // Require auth from cartridge owner
+        cartridge.owner.require_auth();
+
+        // Check if already finalized
+        if cartridge.finalized {
+            panic!("Cartridge already finalized");
+        }
+
+        // Get entropy for the cartridge's splice round
+        let entropy: EntropyData = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Entropy(cartridge.splice_round))
+            .unwrap_or_else(|| panic!("Entropy not available for this round"));
+
+        // Select genes using entropy
+        let head_gene = Self::select_gene(&env, &entropy.randomness, 0);
+        let torso_gene = Self::select_gene(&env, &entropy.randomness, 1);
+        let legs_gene = Self::select_gene(&env, &entropy.randomness, 2);
+
+        // Create creature
+        let creature = Creature {
+            id: cartridge_id,
+            owner: cartridge.owner.clone(),
+            skin_id: cartridge.skin_id,
+            head_gene,
+            torso_gene,
+            legs_gene,
+            finalized_at: env.ledger().timestamp(),
+            entropy_round: cartridge.splice_round,
+        };
+
+        // Mark cartridge as finalized
+        cartridge.finalized = true;
+        env.storage()
+            .persistent()
+            .set(&DataKey::Cartridge(cartridge_id), &cartridge);
+
+        // Store creature
+        env.storage()
+            .persistent()
+            .set(&DataKey::Creature(cartridge_id), &creature);
+
+        // Add to user's creature list
+        let mut user_creatures: Vec<u32> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::UserCreatures(cartridge.owner.clone()))
+            .unwrap_or(Vec::new(&env));
+        user_creatures.push_back(cartridge_id);
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserCreatures(cartridge.owner), &user_creatures);
+
+        // Emit event
+        env.events().publish(
+            (Symbol::new(&env, "creature_finalized"), cartridge_id),
+            (
+                creature.head_gene.id,
+                creature.torso_gene.id,
+                creature.legs_gene.id,
+            ),
+        );
+
+        cartridge_id
+    }
+
+    /// Helper: Select a gene using entropy bytes and gene slot (0=head, 1=torso, 2=legs)
+    fn select_gene(_env: &Env, entropy: &Bytes, slot: u32) -> Gene {
+        // Use different entropy bytes for each gene slot
+        let offset = (slot * 10) as u32;
+
+        // Extract 4 bytes for this gene and convert to u32
+        let byte1 = entropy.get(offset % 32).unwrap_or(0) as u32;
+        let byte2 = entropy.get((offset + 1) % 32).unwrap_or(0) as u32;
+        let byte3 = entropy.get((offset + 2) % 32).unwrap_or(0) as u32;
+        let byte4 = entropy.get((offset + 3) % 32).unwrap_or(0) as u32;
+
+        let random_value = (byte1 << 24) | (byte2 << 16) | (byte3 << 8) | byte4;
+
+        // Map to 0-9 gene ID with weighted distribution
+        // 0-5: Normal (60%), 6-8: Rare (30%), 9: Legendary (10%)
+        let gene_id = (random_value % 10) as u32;
+
+        let rarity = if gene_id <= 5 {
+            GeneRarity::Normal
+        } else if gene_id <= 8 {
+            GeneRarity::Rare
+        } else {
+            GeneRarity::Legendary
+        };
+
+        Gene { id: gene_id, rarity }
+    }
+
+    /// Get entropy data for a specific drand round
+    pub fn get_entropy(env: Env, round: u64) -> Option<EntropyData> {
+        env.storage().persistent().get(&DataKey::Entropy(round))
+    }
+
+    /// Get creature data by ID
+    pub fn get_creature(env: Env, creature_id: u32) -> Option<Creature> {
+        env.storage().persistent().get(&DataKey::Creature(creature_id))
+    }
+
+    /// Get all creature IDs owned by a user
+    pub fn get_user_creatures(env: Env, user: Address) -> Vec<u32> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::UserCreatures(user))
+            .unwrap_or(Vec::new(&env))
     }
 }
 
