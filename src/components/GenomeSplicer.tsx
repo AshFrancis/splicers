@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Button, Card, Heading, Text } from "@stellar/design-system";
 import { useWallet } from "../hooks/useWallet";
-import GeneSplicer from "../contracts/gene_splicer";
+import { useWalletBalance } from "../hooks/useWalletBalance";
+import { Client } from "gene_splicer";
+import { rpcUrl } from "../contracts/util";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 interface CartridgeData {
@@ -14,7 +16,21 @@ interface CartridgeData {
 
 export const GenomeSplicer: React.FC = () => {
   const wallet = useWallet();
+  const { updateBalance } = useWalletBalance();
   const [lastMintedId, setLastMintedId] = useState<number | null>(null);
+
+  // Create contract client with wallet's public key
+  const geneSplicer = useMemo(
+    () =>
+      new Client({
+        networkPassphrase: "Standalone Network ; February 2017",
+        contractId: "CDIQSBTIKKMJSD3ITTYOHMF7FYIIUQE4VO7HZJTS2CQS5K7PYHRB2L76",
+        rpcUrl,
+        allowHttp: true,
+        publicKey: wallet?.address,
+      }),
+    [wallet?.address],
+  );
 
   // Query user's cartridges
   const { data: cartridges, refetch: refetchCartridges } = useQuery<number[]>({
@@ -22,10 +38,11 @@ export const GenomeSplicer: React.FC = () => {
     queryFn: async (): Promise<number[]> => {
       if (!wallet?.address) return [];
       try {
-        const ids = (await GeneSplicer.get_user_cartridges({
+        const tx = await geneSplicer.get_user_cartridges({
           user: wallet.address,
-        })) as unknown as number[];
-        return ids;
+        });
+        const result = await tx.simulate();
+        return result.result ?? [];
       } catch {
         return [];
       }
@@ -40,7 +57,7 @@ export const GenomeSplicer: React.FC = () => {
     queryFn: async (): Promise<CartridgeData | null> => {
       if (!lastMintedId) return null;
       try {
-        const tx = await GeneSplicer.get_cartridge({
+        const tx = await geneSplicer.get_cartridge({
           cartridge_id: lastMintedId,
         });
         const result = await tx.simulate();
@@ -58,7 +75,7 @@ export const GenomeSplicer: React.FC = () => {
       if (!wallet?.address) throw new Error("Wallet not connected");
       if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
 
-      const tx = await GeneSplicer.splice_genome({
+      const tx = await geneSplicer.splice_genome({
         user: wallet.address,
       });
 
@@ -70,6 +87,7 @@ export const GenomeSplicer: React.FC = () => {
     onSuccess: (cartridgeId) => {
       setLastMintedId(cartridgeId);
       void refetchCartridges();
+      void updateBalance(); // Refresh wallet balance after successful mint
     },
   });
 

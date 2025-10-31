@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -8,6 +9,14 @@ import {
 } from "react";
 import { wallet } from "../util/wallet";
 import storage from "../util/storage";
+import { fetchBalance, type Balance } from "../util/wallet";
+
+const formatter = new Intl.NumberFormat();
+
+const checkFunding = (balances: Balance[]) =>
+  balances.some(({ balance }) =>
+    !Number.isNaN(Number(balance)) ? Number(balance) > 0 : false,
+  );
 
 export interface WalletContextType {
   address?: string;
@@ -15,6 +24,12 @@ export interface WalletContextType {
   networkPassphrase?: string;
   isPending: boolean;
   signTransaction?: typeof wallet.signTransaction;
+  balances: Balance[];
+  xlm: string;
+  isFunded: boolean;
+  isLoadingBalance: boolean;
+  balanceError: Error | null;
+  updateBalance: () => Promise<void>;
 }
 
 const initialState = {
@@ -23,20 +38,34 @@ const initialState = {
   networkPassphrase: undefined,
 };
 
+const initialBalanceState = {
+  balances: [],
+  xlm: "-",
+  isFunded: false,
+  isLoadingBalance: false,
+  balanceError: null,
+};
+
 const POLL_INTERVAL = 1000;
 
 export const WalletContext = // eslint-disable-line react-refresh/only-export-components
-  createContext<WalletContextType>({ isPending: true });
+  createContext<WalletContextType>({
+    isPending: true,
+    ...initialBalanceState,
+    updateBalance: async () => {},
+  });
 
 export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] =
     useState<Omit<WalletContextType, "isPending">>(initialState);
+  const [balanceState, setBalanceState] = useState(initialBalanceState);
   const [isPending, startTransition] = useTransition();
   const popupLock = useRef(false);
   const signTransaction = wallet.signTransaction.bind(wallet);
 
   const nullify = () => {
     updateState(initialState);
+    setBalanceState(initialBalanceState);
     storage.setItem("walletId", "");
     storage.setItem("walletAddress", "");
     storage.setItem("walletNetwork", "");
@@ -116,6 +145,47 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const updateBalance = useCallback(async () => {
+    if (!state.address) {
+      setBalanceState(initialBalanceState);
+      return;
+    }
+    try {
+      setBalanceState((prev) => ({ ...prev, isLoadingBalance: true }));
+      const balances = await fetchBalance(state.address);
+      const isFunded = checkFunding(balances);
+      const native = balances.find(({ asset_type }) => asset_type === "native");
+      setBalanceState({
+        isLoadingBalance: false,
+        balances,
+        xlm: native?.balance ? formatter.format(Number(native.balance)) : "-",
+        isFunded,
+        balanceError: null,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message.match(/not found/i)) {
+        setBalanceState({
+          isLoadingBalance: false,
+          balances: [],
+          xlm: "-",
+          isFunded: false,
+          balanceError: new Error(
+            "Error fetching balance. Is your wallet funded?",
+          ),
+        });
+      } else {
+        console.error(err);
+        setBalanceState({
+          isLoadingBalance: false,
+          balances: [],
+          xlm: "-",
+          isFunded: false,
+          balanceError: new Error("Unknown error fetching balance."),
+        });
+      }
+    }
+  }, [state.address]);
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
     let isMounted = true;
@@ -148,13 +218,20 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps -- it SHOULD only run once per component mount
 
+  // Fetch balance when address changes
+  useEffect(() => {
+    void updateBalance();
+  }, [updateBalance]);
+
   const contextValue = useMemo(
     () => ({
       ...state,
+      ...balanceState,
       isPending,
       signTransaction,
+      updateBalance,
     }),
-    [state, isPending, signTransaction],
+    [state, balanceState, isPending, signTransaction, updateBalance],
   );
 
   return <WalletContext value={contextValue}>{children}</WalletContext>;
