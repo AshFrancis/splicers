@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Important: Git Commit Policy
+
+**DO NOT add yourself to git commits.** When creating commits, use simple commit messages without any co-authorship lines or AI attribution. All credit goes to the repository owner. Do not include:
+- `Co-Authored-By: Claude <noreply@anthropic.com>`
+- Any mention of AI assistance
+- Attribution to Claude or Anthropic
+
 ## Project Overview
 
 This is a **Gene Splicing NFT Game** built on Stellar's Soroban smart contract platform, using the Scaffold Stellar framework. The game allows players to splice gene segments to create unique creatures as NFTs. See `/docs/specs/gene-splicing-v1.md` for the full game specification.
