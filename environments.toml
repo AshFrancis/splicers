@@ -12,6 +12,15 @@ default = true # Optional. Whether to use this account as the `--source` for com
 fungible_allowlist_example = { client = true, constructor_args = "--admin me --manager me --initial_supply 1000000000000000000000000" }
 nft_enumerable_example = { client = true, constructor_args = "--owner me" }
 
+# Gene Splicer - Main game contract
+[development.contracts.gene_splicer]
+client = true
+constructor_args = """
+--admin me
+--xlm_token CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC
+--cartridge_skin_count 10
+"""
+
 # Rather than in one list, TOML allows specifying contracts in their own "sections"
 [development.contracts.guess_the_number]
 # Generate a contract client (NPM package) for this contract. This means:
