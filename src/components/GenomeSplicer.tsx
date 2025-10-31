@@ -13,20 +13,17 @@ interface CartridgeData {
 }
 
 export const GenomeSplicer: React.FC = () => {
-  const { data: wallet } = useWallet();
+  const wallet = useWallet();
   const [lastMintedId, setLastMintedId] = useState<number | null>(null);
 
   // Query user's cartridges
   const { data: cartridges, refetch: refetchCartridges } = useQuery<number[]>({
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     queryKey: ["user-cartridges", wallet?.address],
     queryFn: async (): Promise<number[]> => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (!wallet?.address) return [];
       try {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         const ids = (await GeneSplicer.get_user_cartridges({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           user: wallet.address,
         })) as unknown as number[];
         return ids;
@@ -34,7 +31,7 @@ export const GenomeSplicer: React.FC = () => {
         return [];
       }
     },
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
     enabled: !!wallet?.address,
   });
 
@@ -58,13 +55,11 @@ export const GenomeSplicer: React.FC = () => {
   // Mutation for minting
   const mintMutation = useMutation<{ result: unknown }, Error>({
     mutationFn: async (): Promise<{ result: unknown }> => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (!wallet?.address) throw new Error("Wallet not connected");
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       const result = (await GeneSplicer.splice_genome(
         {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           user: wallet.address,
         },
         {
@@ -82,7 +77,6 @@ export const GenomeSplicer: React.FC = () => {
     },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   if (!wallet?.address) {
     return (
       <Card>
