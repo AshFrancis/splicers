@@ -1,5 +1,6 @@
 import React from "react";
 import { Code, Layout, Text } from "@stellar/design-system";
+import { GenomeSplicer } from "../components/GenomeSplicer";
 
 const Home: React.FC = () => (
   <Layout.Content>
@@ -11,6 +12,8 @@ const Home: React.FC = () => (
         Welcome to Gene Splicer - a Stellar NFT game where you splice gene
         segments to create unique creatures.
       </Text>
+
+      <GenomeSplicer />
 
       <Text as="h2" size="lg">
         How to Play
