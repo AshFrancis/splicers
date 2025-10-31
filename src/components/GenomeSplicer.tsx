@@ -40,9 +40,11 @@ export const GenomeSplicer: React.FC = () => {
     queryFn: async (): Promise<CartridgeData | null> => {
       if (!lastMintedId) return null;
       try {
-        return (await GeneSplicer.get_cartridge({
+        const tx = await GeneSplicer.get_cartridge({
           cartridge_id: lastMintedId,
-        })) as unknown as CartridgeData;
+        });
+        const result = await tx.simulate();
+        return (result.result ?? null) as CartridgeData | null;
       } catch {
         return null;
       }
@@ -51,25 +53,22 @@ export const GenomeSplicer: React.FC = () => {
   });
 
   // Mutation for minting
-  const mintMutation = useMutation<{ result: unknown }, Error>({
-    mutationFn: async (): Promise<{ result: unknown }> => {
+  const mintMutation = useMutation<number, Error>({
+    mutationFn: async (): Promise<number> => {
       if (!wallet?.address) throw new Error("Wallet not connected");
+      if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
 
-      const result = (await GeneSplicer.splice_genome(
-        {
-          user: wallet.address,
-        },
-        {
-          responseType: "full",
-        },
-      )) as unknown as { result: unknown };
+      const tx = await GeneSplicer.splice_genome({
+        user: wallet.address,
+      });
 
-      return result;
+      const signed = await tx.signAndSend({
+        signTransaction: wallet.signTransaction,
+      });
+      return Number(signed.result);
     },
-    onSuccess: (data) => {
-      // Extract cartridge ID from result
-      const cartridgeId = data.result as number;
-      setLastMintedId(Number(cartridgeId));
+    onSuccess: (cartridgeId) => {
+      setLastMintedId(cartridgeId);
       void refetchCartridges();
     },
   });
