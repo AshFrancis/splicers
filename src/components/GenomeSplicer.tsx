@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button, Card, Heading, Text } from "@stellar/design-system";
 import { useWallet } from "../hooks/useWallet";
-import * as GeneSplicer from "../contracts/gene_splicer";
+import GeneSplicer from "../contracts/gene_splicer";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 interface CartridgeData {
@@ -22,7 +22,6 @@ export const GenomeSplicer: React.FC = () => {
     queryFn: async (): Promise<number[]> => {
       if (!wallet?.address) return [];
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         const ids = (await GeneSplicer.get_user_cartridges({
           user: wallet.address,
         })) as unknown as number[];
@@ -41,7 +40,6 @@ export const GenomeSplicer: React.FC = () => {
     queryFn: async (): Promise<CartridgeData | null> => {
       if (!lastMintedId) return null;
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         return (await GeneSplicer.get_cartridge({
           cartridge_id: lastMintedId,
         })) as unknown as CartridgeData;
@@ -57,7 +55,6 @@ export const GenomeSplicer: React.FC = () => {
     mutationFn: async (): Promise<{ result: unknown }> => {
       if (!wallet?.address) throw new Error("Wallet not connected");
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       const result = (await GeneSplicer.splice_genome(
         {
           user: wallet.address,
