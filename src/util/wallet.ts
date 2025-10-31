@@ -20,30 +20,44 @@ export const connectWallet = async () => {
       const selectedId = option.id;
       kit.setWallet(selectedId);
 
-      // Now open selected wallet's login flow by calling `getAddress` --
-      // Yes, it's strange that a getter has a side effect of opening a modal
-      void kit.getAddress().then((address) => {
-        // Once `getAddress` returns successfully, we know they actually
-        // connected the selected wallet, and we set our localStorage
-        if (address.address) {
-          storage.setItem("walletId", selectedId);
-          storage.setItem("walletAddress", address.address);
-        } else {
+      // Wrap async logic in void to satisfy type signature
+      void (async () => {
+        try {
+          // Request access first
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          await kit.requestAccess();
+
+          // Now we can get the address
+          const address = await kit.getAddress();
+
+          if (address.address) {
+            storage.setItem("walletId", selectedId);
+            storage.setItem("walletAddress", address.address);
+          } else {
+            storage.setItem("walletId", "");
+            storage.setItem("walletAddress", "");
+          }
+
+          // Get network info for compatible wallets
+          if (selectedId == "freighter" || selectedId == "hot-wallet") {
+            const network = await kit.getNetwork();
+            if (network.network && network.networkPassphrase) {
+              storage.setItem("walletNetwork", network.network);
+              storage.setItem("networkPassphrase", network.networkPassphrase);
+            } else {
+              storage.setItem("walletNetwork", "");
+              storage.setItem("networkPassphrase", "");
+            }
+          }
+        } catch (err) {
+          console.error(
+            "Wallet connection error:",
+            err instanceof Error ? err.message : String(err),
+          );
           storage.setItem("walletId", "");
           storage.setItem("walletAddress", "");
         }
-      });
-      if (selectedId == "freighter" || selectedId == "hot-wallet") {
-        void kit.getNetwork().then((network) => {
-          if (network.network && network.networkPassphrase) {
-            storage.setItem("walletNetwork", network.network);
-            storage.setItem("networkPassphrase", network.networkPassphrase);
-          } else {
-            storage.setItem("walletNetwork", "");
-            storage.setItem("networkPassphrase", "");
-          }
-        });
-      }
+      })();
     },
   });
 };
