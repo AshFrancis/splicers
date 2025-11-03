@@ -1,0 +1,385 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
+import { GenomeSplicer } from "./GenomeSplicer";
+import { renderWithProviders } from "../test/test-utils";
+import {
+  createMockCartridge,
+  createMockCreature,
+} from "../test/mocks/contract";
+import { mockWallet, mockWalletBalance } from "../test/mocks/wallet";
+
+// Mock hooks
+vi.mock("../hooks/useWallet", () => ({
+  useWallet: () => mockWallet,
+}));
+
+vi.mock("../hooks/useWalletBalance", () => ({
+  useWalletBalance: () => mockWalletBalance,
+}));
+
+// Mock contract
+vi.mock("../contracts/gene_splicer", () => ({
+  default: {
+    get_user_cartridges: vi.fn().mockResolvedValue({
+      simulate: vi.fn().mockResolvedValue({ result: [] }),
+    }),
+    get_user_creatures: vi.fn().mockResolvedValue({
+      simulate: vi.fn().mockResolvedValue({ result: [] }),
+    }),
+    get_entropy: vi.fn().mockResolvedValue({
+      simulate: vi.fn().mockResolvedValue({ result: null }),
+    }),
+  },
+}));
+
+vi.mock("../contracts/util", () => ({
+  createGeneSplicerClient: vi.fn().mockResolvedValue({
+    splice_genome: vi.fn().mockResolvedValue({
+      signAndSend: vi.fn().mockResolvedValue({ result: 1 }),
+    }),
+    finalize_splice: vi.fn().mockResolvedValue({
+      signAndSend: vi.fn().mockResolvedValue({ result: 1 }),
+    }),
+  }),
+}));
+
+describe("GenomeSplicer", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockWallet.address = "GBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMADI";
+    mockWallet.signTransaction = vi.fn().mockResolvedValue("signed_xdr");
+    mockWalletBalance.updateBalance = vi.fn().mockResolvedValue(undefined);
+  });
+
+  describe("Wallet not connected", () => {
+    it("should show connect wallet message when no wallet", () => {
+      mockWallet.address = undefined;
+
+      renderWithProviders(<GenomeSplicer />);
+
+      expect(
+        screen.getByText("Please connect your wallet to mint genome cartridges."),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /splice genome/i }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Wallet connected", () => {
+    it("should render mint button when wallet is connected", () => {
+      renderWithProviders(<GenomeSplicer />);
+
+      expect(
+        screen.getByRole("button", { name: /splice genome \(1 xlm\)/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Create a new Genome Cartridge NFT with a random skin. Cost: 1 XLM"),
+      ).toBeInTheDocument();
+    });
+
+    it("should show loading state while minting", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<GenomeSplicer />);
+
+      const mintButton = screen.getByRole("button", {
+        name: /splice genome \(1 xlm\)/i,
+      });
+
+      await user.click(mintButton);
+
+      // Button should be disabled during minting
+      await waitFor(() => {
+        expect(mintButton).toBeDisabled();
+      });
+    });
+
+    it("should call signTransaction when minting", async () => {
+      const user = userEvent.setup();
+      const { createGeneSplicerClient } = await import("../contracts/util");
+      const mockClient = await createGeneSplicerClient("mock");
+
+      renderWithProviders(<GenomeSplicer />);
+
+      const mintButton = screen.getByRole("button", {
+        name: /splice genome \(1 xlm\)/i,
+      });
+      await user.click(mintButton);
+
+      await waitFor(() => {
+        expect(mockClient.splice_genome).toHaveBeenCalledWith({
+          user: mockWallet.address,
+        });
+      });
+
+      await waitFor(() => {
+        expect(mockWallet.signTransaction).toHaveBeenCalled();
+      });
+    });
+
+    it("should update balance after successful mint", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<GenomeSplicer />);
+
+      const mintButton = screen.getByRole("button", {
+        name: /splice genome \(1 xlm\)/i,
+      });
+      await user.click(mintButton);
+
+      await waitFor(() => {
+        expect(mockWalletBalance.updateBalance).toHaveBeenCalled();
+      });
+    });
+
+    it("should show success message after minting", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<GenomeSplicer />);
+
+      const mintButton = screen.getByRole("button", {
+        name: /splice genome \(1 xlm\)/i,
+      });
+      await user.click(mintButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/✓ Cartridge Minted! ID: 1/i)).toBeInTheDocument();
+      });
+    });
+
+    it("should show error message when minting fails", async () => {
+      const user = userEvent.setup();
+      const { createGeneSplicerClient } = await import("../contracts/util");
+      vi.mocked(createGeneSplicerClient).mockResolvedValueOnce({
+        // @ts-expect-error - partial mock
+        splice_genome: vi.fn().mockRejectedValue(new Error("Transaction failed")),
+      });
+
+      renderWithProviders(<GenomeSplicer />);
+
+      const mintButton = screen.getByRole("button", {
+        name: /splice genome \(1 xlm\)/i,
+      });
+      await user.click(mintButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Error: Transaction failed/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Cartridges Display", () => {
+    it("should display user's cartridges when they exist", async () => {
+      const GeneSplicer = (await import("../contracts/gene_splicer")).default;
+      const mockCartridge = createMockCartridge({ id: 1, skin_id: 3 });
+
+      vi.mocked(GeneSplicer.get_user_cartridges).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: [1] }),
+      });
+
+      vi.mocked(GeneSplicer.get_cartridge).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: mockCartridge }),
+      });
+
+      renderWithProviders(<GenomeSplicer />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Your Genome Cartridges (1)")).toBeInTheDocument();
+        expect(screen.getByText("Cartridge #1")).toBeInTheDocument();
+        expect(screen.getByText("Skin ID: 3")).toBeInTheDocument();
+      });
+    });
+
+    it("should show 'Sequencing...' for unfinalized cartridge without entropy", async () => {
+      const GeneSplicer = (await import("../contracts/gene_splicer")).default;
+      const mockCartridge = createMockCartridge({
+        id: 1,
+        finalized: false,
+      });
+
+      vi.mocked(GeneSplicer.get_user_cartridges).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: [1] }),
+      });
+
+      vi.mocked(GeneSplicer.get_cartridge).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: mockCartridge }),
+      });
+
+      vi.mocked(GeneSplicer.get_entropy).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: null }),
+      });
+
+      renderWithProviders(<GenomeSplicer />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Sequencing...")).toBeInTheDocument();
+      });
+    });
+
+    it("should show 'Finalize' button when entropy is available", async () => {
+      const GeneSplicer = (await import("../contracts/gene_splicer")).default;
+      const mockCartridge = createMockCartridge({
+        id: 1,
+        finalized: false,
+      });
+
+      vi.mocked(GeneSplicer.get_user_cartridges).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: [1] }),
+      });
+
+      vi.mocked(GeneSplicer.get_cartridge).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: mockCartridge }),
+      });
+
+      // Mock entropy is available
+      vi.mocked(GeneSplicer.get_entropy).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({
+          result: { randomness: "0x1234", signature: "0xabcd" },
+        }),
+      });
+
+      renderWithProviders(<GenomeSplicer />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: /finalize/i }),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("should show '✓ Finalized' for finalized cartridges", async () => {
+      const GeneSplicer = (await import("../contracts/gene_splicer")).default;
+      const mockCartridge = createMockCartridge({
+        id: 1,
+        finalized: true,
+      });
+
+      vi.mocked(GeneSplicer.get_user_cartridges).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: [1] }),
+      });
+
+      vi.mocked(GeneSplicer.get_cartridge).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: mockCartridge }),
+      });
+
+      renderWithProviders(<GenomeSplicer />);
+
+      await waitFor(() => {
+        expect(screen.getByText("✓ Finalized")).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Creatures Display", () => {
+    it("should display user's creatures when they exist", async () => {
+      const GeneSplicer = (await import("../contracts/gene_splicer")).default;
+      const mockCreature = createMockCreature({
+        id: 1,
+        skin_id: 5,
+        head_gene: {
+          id: 2,
+          rarity: { tag: "Common", values: undefined },
+        },
+        torso_gene: {
+          id: 4,
+          rarity: { tag: "Rare", values: undefined },
+        },
+        legs_gene: {
+          id: 7,
+          rarity: { tag: "Legendary", values: undefined },
+        },
+      });
+
+      vi.mocked(GeneSplicer.get_user_creatures).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: [1] }),
+      });
+
+      vi.mocked(GeneSplicer.get_creature).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: mockCreature }),
+      });
+
+      renderWithProviders(<GenomeSplicer />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Your Creatures (1)")).toBeInTheDocument();
+        expect(screen.getByText("Creature #1")).toBeInTheDocument();
+        expect(screen.getByText("Skin ID: 5")).toBeInTheDocument();
+        expect(screen.getByText("Head #2")).toBeInTheDocument();
+        expect(screen.getByText("Torso #4")).toBeInTheDocument();
+        expect(screen.getByText("Legs #7")).toBeInTheDocument();
+      });
+    });
+
+    it("should not display creatures section when user has no creatures", async () => {
+      const GeneSplicer = (await import("../contracts/gene_splicer")).default;
+
+      vi.mocked(GeneSplicer.get_user_creatures).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: [] }),
+      });
+
+      renderWithProviders(<GenomeSplicer />);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Your Creatures/i)).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Finalization Flow", () => {
+    it("should finalize cartridge when button is clicked", async () => {
+      const user = userEvent.setup();
+      const GeneSplicer = (await import("../contracts/gene_splicer")).default;
+      const { createGeneSplicerClient } = await import("../contracts/util");
+      const mockClient = await createGeneSplicerClient("mock");
+
+      const mockCartridge = createMockCartridge({
+        id: 1,
+        finalized: false,
+      });
+
+      vi.mocked(GeneSplicer.get_user_cartridges).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: [1] }),
+      });
+
+      vi.mocked(GeneSplicer.get_cartridge).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({ result: mockCartridge }),
+      });
+
+      vi.mocked(GeneSplicer.get_entropy).mockResolvedValue({
+        // @ts-expect-error - partial mock
+        simulate: vi.fn().mockResolvedValue({
+          result: { randomness: "0x1234", signature: "0xabcd" },
+        }),
+      });
+
+      renderWithProviders(<GenomeSplicer />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /finalize/i })).toBeInTheDocument();
+      });
+
+      const finalizeButton = screen.getByRole("button", { name: /finalize/i });
+      await user.click(finalizeButton);
+
+      await waitFor(() => {
+        expect(mockClient.finalize_splice).toHaveBeenCalledWith({
+          cartridge_id: 1,
+        });
+      });
+    });
+  });
+});

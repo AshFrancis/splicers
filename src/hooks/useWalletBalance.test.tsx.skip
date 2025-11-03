@@ -1,0 +1,76 @@
+import { describe, it, expect, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useWalletBalance } from "./useWalletBalance";
+import { WalletProvider } from "../providers/WalletProvider";
+
+// Mock stellar-wallets-kit
+vi.mock("@creit.tech/stellar-wallets-kit", () => {
+  const mockKit = {
+    openModal: vi.fn(),
+    setNetwork: vi.fn(),
+    getAddress: vi.fn(),
+    getNetwork: vi.fn(),
+  };
+
+  return {
+    StellarWalletsKit: vi.fn(function () {
+      return mockKit;
+    }),
+    WalletNetwork: {
+      PUBLIC: "Public Global Stellar Network ; September 2015",
+      TESTNET: "Test SDF Network ; September 2015",
+      FUTURENET: "Test SDF Future Network ; October 2022",
+      STANDALONE: "Standalone Network ; February 2017",
+    },
+    sep43Modules: vi.fn().mockReturnValue([]),
+    XBULL_ID: "xbull",
+    FREIGHTER_ID: "freighter",
+  };
+});
+
+// Mock Stellar SDK
+vi.mock("@stellar/stellar-sdk", () => ({
+  Server: vi.fn().mockImplementation(() => ({
+    loadAccount: vi.fn().mockResolvedValue({
+      balances: [
+        {
+          asset_type: "native",
+          balance: "100.0000000",
+        },
+      ],
+    }),
+  })),
+}));
+
+function wrapper({ children }: { children: ReactNode }) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WalletProvider>{children}</WalletProvider>
+    </QueryClientProvider>
+  );
+}
+
+describe("useWalletBalance", () => {
+  it("should return balance state", () => {
+    const { result } = renderHook(() => useWalletBalance(), { wrapper });
+
+    expect(result.current.balance).toBeDefined();
+    expect(result.current.isLoading).toBeDefined();
+    expect(result.current.error).toBeDefined();
+  });
+
+  it("should provide updateBalance function", () => {
+    const { result } = renderHook(() => useWalletBalance(), { wrapper });
+
+    expect(result.current.updateBalance).toBeDefined();
+    expect(typeof result.current.updateBalance).toBe("function");
+  });
+});

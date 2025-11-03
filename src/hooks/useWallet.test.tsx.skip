@@ -1,0 +1,75 @@
+import { describe, it, expect, vi } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { ReactNode } from "react";
+import { useWallet } from "./useWallet";
+import { WalletProvider } from "../providers/WalletProvider";
+
+// Mock stellar-wallets-kit
+vi.mock("@creit.tech/stellar-wallets-kit", () => {
+  const mockKit = {
+    openModal: vi.fn().mockResolvedValue({
+      address: "GBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMADI",
+      network: "LOCAL",
+    }),
+    setNetwork: vi.fn(),
+    getAddress: vi.fn().mockResolvedValue("GBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMADI"),
+    getNetwork: vi.fn().mockResolvedValue("LOCAL"),
+    signTransaction: vi.fn(),
+    signAuthEntry: vi.fn(),
+    signMessage: vi.fn(),
+  };
+
+  return {
+    StellarWalletsKit: vi.fn(function () {
+      return mockKit;
+    }),
+    WalletNetwork: {
+      PUBLIC: "Public Global Stellar Network ; September 2015",
+      TESTNET: "Test SDF Network ; September 2015",
+      FUTURENET: "Test SDF Future Network ; October 2022",
+      STANDALONE: "Standalone Network ; February 2017",
+    },
+    sep43Modules: vi.fn().mockReturnValue([]),
+    XBULL_ID: "xbull",
+    FREIGHTER_ID: "freighter",
+  };
+});
+
+function wrapper({ children }: { children: ReactNode }) {
+  return <WalletProvider>{children}</WalletProvider>;
+}
+
+describe("useWallet", () => {
+  it("should throw error when used outside WalletProvider", () => {
+    // Suppress console.error for this test
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(() => renderHook(() => useWallet())).toThrow(
+      "useWallet must be used within a WalletProvider",
+    );
+
+    consoleError.mockRestore();
+  });
+
+  it("should return wallet context with no address initially", () => {
+    const { result } = renderHook(() => useWallet(), { wrapper });
+
+    expect(result.current.address).toBeUndefined();
+    expect(result.current.network).toBeUndefined();
+    expect(result.current.signTransaction).toBeDefined();
+  });
+
+  it("should provide connect function", () => {
+    const { result } = renderHook(() => useWallet(), { wrapper });
+
+    expect(result.current.connect).toBeDefined();
+    expect(typeof result.current.connect).toBe("function");
+  });
+
+  it("should provide disconnect function", () => {
+    const { result } = renderHook(() => useWallet(), { wrapper });
+
+    expect(result.current.disconnect).toBeDefined();
+    expect(typeof result.current.disconnect).toBe("function");
+  });
+});
