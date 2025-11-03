@@ -7,6 +7,9 @@ import { createGeneSplicerClient } from "../contracts/util";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { GenomeCartridge, Creature } from "gene_splicer";
 
+// Constants
+const POLL_INTERVAL_MS = 5000;
+
 // Type aliases for better readability in the component
 type CartridgeData = GenomeCartridge;
 type CreatureData = Creature;
@@ -15,7 +18,7 @@ type CreatureData = Creature;
 const CartridgeRow: React.FC<{
   cartridge: CartridgeData;
   onFinalized: () => void;
-}> = ({ cartridge, onFinalized }) => {
+}> = React.memo(({ cartridge, onFinalized }) => {
   const wallet = useWallet();
 
   // Check if entropy is available for this cartridge's splice round
@@ -33,7 +36,7 @@ const CartridgeRow: React.FC<{
       }
     },
     enabled: !cartridge.finalized,
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: POLL_INTERVAL_MS,
   });
 
   // Finalize mutation
@@ -111,7 +114,9 @@ const CartridgeRow: React.FC<{
       )}
     </div>
   );
-};
+});
+
+CartridgeRow.displayName = "CartridgeRow";
 
 export const GenomeSplicer: React.FC = () => {
   const wallet = useWallet();
@@ -158,7 +163,7 @@ export const GenomeSplicer: React.FC = () => {
     },
 
     enabled: !!wallet?.address,
-    refetchInterval: 5000, // Poll every 5 seconds for updates
+    refetchInterval: POLL_INTERVAL_MS,
   });
 
   // Query user's creatures with full details
@@ -199,7 +204,7 @@ export const GenomeSplicer: React.FC = () => {
     },
 
     enabled: !!wallet?.address,
-    refetchInterval: 5000, // Poll every 5 seconds for updates
+    refetchInterval: POLL_INTERVAL_MS,
   });
 
   // Query cartridge details

@@ -1,6 +1,7 @@
 import React from "react";
 import { Code, Layout, Text } from "@stellar/design-system";
 import { GenomeSplicer } from "../components/GenomeSplicer";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 const Home: React.FC = () => (
   <Layout.Content>
@@ -13,7 +14,9 @@ const Home: React.FC = () => (
         segments to create unique creatures.
       </Text>
 
-      <GenomeSplicer />
+      <ErrorBoundary>
+        <GenomeSplicer />
+      </ErrorBoundary>
 
       <Text as="h2" size="lg">
         How to Play

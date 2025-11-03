@@ -1,5 +1,6 @@
 import { Button, Icon, Layout } from "@stellar/design-system";
 import ConnectAccount from "./components/ConnectAccount.tsx";
+import ErrorBoundary from "./components/ErrorBoundary.tsx";
 import { Routes, Route, Outlet, NavLink } from "react-router-dom";
 import Home from "./pages/Home";
 import Debugger from "./pages/Debugger.tsx";
@@ -35,7 +36,9 @@ const AppLayout: React.FC = () => (
         </>
       }
     />
-    <Outlet />
+    <ErrorBoundary>
+      <Outlet />
+    </ErrorBoundary>
     <Layout.Footer>
       <span>
         © {new Date().getFullYear()} My App. Licensed under the{" "}
