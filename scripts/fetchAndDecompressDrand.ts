@@ -1,19 +1,27 @@
 #!/usr/bin/env tsx
 /**
- * Fetch latest drand entropy and decompress for contract submission
+ * Fetch drand entropy and decompress for contract submission
  * Outputs JSON with round, randomness (hex), and signature (hex)
+ *
+ * Usage:
+ *   npx tsx scripts/fetchAndDecompressDrand.ts          # Fetch latest round
+ *   npx tsx scripts/fetchAndDecompressDrand.ts 5558089  # Fetch specific round
  */
 
 import {
   fetchLatestDrandEntropy,
+  fetchDrandEntropy,
   parseAndDecompressEntropy,
   bytesToHex,
-} from '../src/services/entropyRelayer.js';
+} from "../src/services/entropyRelayer.js";
 
 async function main() {
   try {
-    // Fetch latest drand entropy
-    const drandRound = await fetchLatestDrandEntropy();
+    // Fetch drand entropy (latest or specific round)
+    const roundArg = process.argv[2];
+    const drandRound = roundArg
+      ? await fetchDrandEntropy(parseInt(roundArg))
+      : await fetchLatestDrandEntropy();
 
     // Decompress signature
     const uncompressed = parseAndDecompressEntropy(drandRound);
@@ -26,10 +34,11 @@ async function main() {
     };
 
     console.log(JSON.stringify(result));
-  } catch (error: any) {
-    console.error(`Error: ${error.message}`, { error });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Error: ${message}`);
     process.exit(1);
   }
 }
 
-main();
+void main();
