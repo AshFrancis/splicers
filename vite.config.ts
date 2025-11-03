@@ -38,6 +38,7 @@ export default defineConfig(() => {
       globals: true,
       environment: "happy-dom",
       setupFiles: ["./src/test/setup.ts"],
+      exclude: ["**/node_modules/**", "**/e2e/**"],
       css: {
         modules: {
           classNameStrategy: "non-scoped",
@@ -51,6 +52,7 @@ export default defineConfig(() => {
           "src/debug/",
           "**/*.config.{ts,js}",
           "**/test_snapshots/",
+          "e2e/",
         ],
       },
     },
