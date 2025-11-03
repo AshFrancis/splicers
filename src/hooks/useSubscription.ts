@@ -78,7 +78,8 @@ export function useSubscription(
                 error,
               );
             } finally {
-              paging[id].pagingToken = event.pagingToken;
+              paging[id].pagingToken =
+                (event.pagingToken as string | undefined) ?? undefined;
             }
           });
         }

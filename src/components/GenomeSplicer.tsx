@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { Button, Card, Heading, Text } from "@stellar/design-system";
 import { useWallet } from "../hooks/useWallet";
 import { useWalletBalance } from "../hooks/useWalletBalance";
-import GeneSplicer, { createGeneSplicerClient } from "../contracts/gene_splicer";
+import GeneSplicer, {
+  createGeneSplicerClient,
+} from "../contracts/gene_splicer";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 interface CartridgeData {
@@ -153,7 +155,7 @@ export const GenomeSplicer: React.FC = () => {
           user: wallet.address,
         });
         const result = await tx.simulate();
-        const cartridgeIds = (result.result ?? []) as number[];
+        const cartridgeIds = result.result ?? [];
 
         // Fetch full details for each cartridge
         const cartridgeDetails = await Promise.all(
@@ -168,11 +170,11 @@ export const GenomeSplicer: React.FC = () => {
               console.error(`Failed to fetch cartridge ${id}:`, err);
               return null;
             }
-          })
+          }),
         );
 
         return cartridgeDetails.filter(
-          (c): c is CartridgeData => c !== null && c !== undefined
+          (c): c is CartridgeData => c !== null && c !== undefined,
         );
       } catch (err) {
         console.error("Failed to fetch cartridges:", err);
@@ -194,7 +196,7 @@ export const GenomeSplicer: React.FC = () => {
           user: wallet.address,
         });
         const result = await tx.simulate();
-        const creatureIds = (result.result ?? []) as number[];
+        const creatureIds = result.result ?? [];
 
         // Fetch full details for each creature
         const creatureDetails = await Promise.all(
@@ -209,11 +211,11 @@ export const GenomeSplicer: React.FC = () => {
               console.error(`Failed to fetch creature ${id}:`, err);
               return null;
             }
-          })
+          }),
         );
 
         return creatureDetails.filter(
-          (c): c is CreatureData => c !== null && c !== undefined
+          (c): c is CreatureData => c !== null && c !== undefined,
         );
       } catch (err) {
         console.error("Failed to fetch creatures:", err);
@@ -405,8 +407,8 @@ export const GenomeSplicer: React.FC = () => {
                           creature.head_gene.rarity.tag === "Legendary"
                             ? "#ff9800"
                             : creature.head_gene.rarity.tag === "Rare"
-                            ? "#9c27b0"
-                            : "#666",
+                              ? "#9c27b0"
+                              : "#666",
                       }}
                     >
                       {creature.head_gene.rarity.tag}
@@ -430,8 +432,8 @@ export const GenomeSplicer: React.FC = () => {
                           creature.torso_gene.rarity.tag === "Legendary"
                             ? "#ff9800"
                             : creature.torso_gene.rarity.tag === "Rare"
-                            ? "#9c27b0"
-                            : "#666",
+                              ? "#9c27b0"
+                              : "#666",
                       }}
                     >
                       {creature.torso_gene.rarity.tag}
@@ -455,8 +457,8 @@ export const GenomeSplicer: React.FC = () => {
                           creature.legs_gene.rarity.tag === "Legendary"
                             ? "#ff9800"
                             : creature.legs_gene.rarity.tag === "Rare"
-                            ? "#9c27b0"
-                            : "#666",
+                              ? "#9c27b0"
+                              : "#666",
                       }}
                     >
                       {creature.legs_gene.rarity.tag}
