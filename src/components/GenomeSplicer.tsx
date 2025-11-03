@@ -6,6 +6,7 @@ import GeneSplicer from "../contracts/gene_splicer";
 import { createGeneSplicerClient } from "../contracts/util";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { GenomeCartridge, Creature } from "gene_splicer";
+import { CreatureRenderer } from "./CreatureRenderer";
 
 // Constants
 const POLL_INTERVAL_MS = 5000;
@@ -345,100 +346,182 @@ export const GenomeSplicer: React.FC = () => {
               <div
                 key={creature.id}
                 style={{
-                  padding: "0.75rem",
-                  marginBottom: "0.5rem",
-                  backgroundColor: "#e8f5e9",
-                  borderRadius: "4px",
+                  padding: "1rem",
+                  marginBottom: "1rem",
+                  background:
+                    "linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%)",
+                  borderRadius: "12px",
+                  border: "2px solid #d0d0d0",
                 }}
               >
-                <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
-                  Creature #{creature.id}
-                </Text>
-                <Text as="p" size="sm" style={{ color: "#666" }}>
-                  Skin ID: {creature.skin_id}
-                </Text>
                 <div
                   style={{
-                    marginTop: "0.5rem",
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr",
-                    gap: "0.5rem",
+                    display: "flex",
+                    gap: "1.5rem",
+                    alignItems: "flex-start",
+                    flexWrap: "wrap",
                   }}
                 >
+                  {/* Creature visual */}
                   <div
                     style={{
-                      padding: "0.5rem",
+                      flex: "0 0 auto",
                       backgroundColor: "white",
-                      borderRadius: "4px",
+                      borderRadius: "8px",
+                      padding: "0.5rem",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                     }}
                   >
-                    <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
-                      Head #{creature.head_gene.id}
-                    </Text>
-                    <Text
-                      as="p"
-                      size="sm"
-                      style={{
-                        color:
-                          creature.head_gene.rarity.tag === "Legendary"
-                            ? "#ff9800"
-                            : creature.head_gene.rarity.tag === "Rare"
-                              ? "#9c27b0"
-                              : "#666",
-                      }}
-                    >
-                      {creature.head_gene.rarity.tag}
-                    </Text>
+                    <CreatureRenderer creature={creature} size={200} />
                   </div>
-                  <div
-                    style={{
-                      padding: "0.5rem",
-                      backgroundColor: "white",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
-                      Torso #{creature.torso_gene.id}
+
+                  {/* Creature info */}
+                  <div style={{ flex: "1", minWidth: "250px" }}>
+                    <Text
+                      as="p"
+                      size="md"
+                      style={{ fontWeight: "bold", marginBottom: "0.5rem" }}
+                    >
+                      Creature #{creature.id}
                     </Text>
                     <Text
                       as="p"
                       size="sm"
+                      style={{ color: "#666", marginBottom: "1rem" }}
+                    >
+                      Skin Variant: {creature.skin_id}
+                    </Text>
+
+                    {/* Gene details */}
+                    <div
                       style={{
-                        color:
-                          creature.torso_gene.rarity.tag === "Legendary"
-                            ? "#ff9800"
-                            : creature.torso_gene.rarity.tag === "Rare"
-                              ? "#9c27b0"
-                              : "#666",
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(100px, 1fr))",
+                        gap: "0.5rem",
                       }}
                     >
-                      {creature.torso_gene.rarity.tag}
-                    </Text>
-                  </div>
-                  <div
-                    style={{
-                      padding: "0.5rem",
-                      backgroundColor: "white",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
-                      Legs #{creature.legs_gene.id}
-                    </Text>
-                    <Text
-                      as="p"
-                      size="sm"
-                      style={{
-                        color:
-                          creature.legs_gene.rarity.tag === "Legendary"
-                            ? "#ff9800"
-                            : creature.legs_gene.rarity.tag === "Rare"
-                              ? "#9c27b0"
-                              : "#666",
-                      }}
-                    >
-                      {creature.legs_gene.rarity.tag}
-                    </Text>
+                      <div
+                        style={{
+                          padding: "0.75rem",
+                          backgroundColor: "white",
+                          borderRadius: "6px",
+                          border: `2px solid ${
+                            creature.head_gene.rarity.tag === "Legendary"
+                              ? "#f59e0b"
+                              : creature.head_gene.rarity.tag === "Rare"
+                                ? "#9f7aea"
+                                : "#a0aec0"
+                          }`,
+                        }}
+                      >
+                        <Text
+                          as="p"
+                          size="xs"
+                          style={{ color: "#666", marginBottom: "0.25rem" }}
+                        >
+                          HEAD
+                        </Text>
+                        <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
+                          #{creature.head_gene.id}
+                        </Text>
+                        <Text
+                          as="p"
+                          size="sm"
+                          style={{
+                            color:
+                              creature.head_gene.rarity.tag === "Legendary"
+                                ? "#f59e0b"
+                                : creature.head_gene.rarity.tag === "Rare"
+                                  ? "#9f7aea"
+                                  : "#718096",
+                            fontWeight: "600",
+                          }}
+                        >
+                          {creature.head_gene.rarity.tag}
+                        </Text>
+                      </div>
+                      <div
+                        style={{
+                          padding: "0.75rem",
+                          backgroundColor: "white",
+                          borderRadius: "6px",
+                          border: `2px solid ${
+                            creature.torso_gene.rarity.tag === "Legendary"
+                              ? "#f59e0b"
+                              : creature.torso_gene.rarity.tag === "Rare"
+                                ? "#9f7aea"
+                                : "#a0aec0"
+                          }`,
+                        }}
+                      >
+                        <Text
+                          as="p"
+                          size="xs"
+                          style={{ color: "#666", marginBottom: "0.25rem" }}
+                        >
+                          TORSO
+                        </Text>
+                        <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
+                          #{creature.torso_gene.id}
+                        </Text>
+                        <Text
+                          as="p"
+                          size="sm"
+                          style={{
+                            color:
+                              creature.torso_gene.rarity.tag === "Legendary"
+                                ? "#f59e0b"
+                                : creature.torso_gene.rarity.tag === "Rare"
+                                  ? "#9f7aea"
+                                  : "#718096",
+                            fontWeight: "600",
+                          }}
+                        >
+                          {creature.torso_gene.rarity.tag}
+                        </Text>
+                      </div>
+                      <div
+                        style={{
+                          padding: "0.75rem",
+                          backgroundColor: "white",
+                          borderRadius: "6px",
+                          border: `2px solid ${
+                            creature.legs_gene.rarity.tag === "Legendary"
+                              ? "#f59e0b"
+                              : creature.legs_gene.rarity.tag === "Rare"
+                                ? "#9f7aea"
+                                : "#a0aec0"
+                          }`,
+                        }}
+                      >
+                        <Text
+                          as="p"
+                          size="xs"
+                          style={{ color: "#666", marginBottom: "0.25rem" }}
+                        >
+                          LEGS
+                        </Text>
+                        <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
+                          #{creature.legs_gene.id}
+                        </Text>
+                        <Text
+                          as="p"
+                          size="sm"
+                          style={{
+                            color:
+                              creature.legs_gene.rarity.tag === "Legendary"
+                                ? "#f59e0b"
+                                : creature.legs_gene.rarity.tag === "Rare"
+                                  ? "#9f7aea"
+                                  : "#718096",
+                            fontWeight: "600",
+                          }}
+                        >
+                          {creature.legs_gene.rarity.tag}
+                        </Text>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
