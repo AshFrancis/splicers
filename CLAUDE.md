@@ -77,15 +77,30 @@ npm run service:finalize
 cargo test
 
 # Build contracts manually (if not using watch)
-cargo build --target wasm32-unknown-unknown --release
+stellar contract build
 
-# Registry operations (testnet/mainnet)
-stellar registry publish --wasm path/to/contract.wasm --wasm-name my-contract
-stellar registry deploy --contract-name instance --wasm-name my-contract -- --arg1 value1
-stellar registry install my-contract-instance
+# Install contract to network
+stellar contract install --wasm target/wasm32v1-none/release/contract.wasm --network local --source me
+
+# Deploy contract instance
+stellar contract deploy --wasm-hash <hash> --network local --source me
+
+# Generate TypeScript bindings
+stellar contract bindings typescript --network local --contract-id <id> --output-dir packages/<name> --overwrite
 
 # Direct contract invocation
-stellar contract invoke --id <contract-id> -- <method> --arg value
+stellar contract invoke --id <contract-id> --network local --source me -- <method> --arg value
+
+# Initialize gene-splicer with drand public key (192 bytes uncompressed G2)
+stellar contract invoke --id <contract-id> --network local --source me -- initialize \
+  --admin <address> \
+  --xlm_token CDMLFMKMMD7MWZP3FKUBZPVHTUEDLSX4BYGYKH4GCESXYHS3IHQ4EIG4 \
+  --cartridge_skin_count 10 \
+  --dev_mode true \
+  --drand_public_key <192-byte-hex>
+
+# Get uncompressed drand public key for initialization
+npx tsx scripts/getDrandPubkey.ts
 ```
 
 ### fly.io Deployment
@@ -126,6 +141,118 @@ fly status
 2. **submit_entropy(round, randomness, signature)**: Off-chain service submits drand entropy with CAP-0059 verification
 3. **finalize_splice(id)**: Permissionless function that uses drand-verified entropy to select genes (head, torso, legs) and mint final Creature NFT
 
+### BLS12-381 Entropy Verification (CAP-0059)
+
+The contract implements full BLS12-381 signature verification using Stellar's CAP-0059 host functions to ensure drand entropy is authentic and cannot be forged.
+
+**Architecture Overview:**
+
+```
+┌─────────────────────┐         ┌──────────────────────────────┐
+│  Drand Quicknet     │         │  Off-Chain Relayer           │
+│  (api.drand.sh)     │────────>│  (NON-SECURITY-CRITICAL)     │
+│                     │         │                              │
+│  - 48-byte G1 sig   │         │  - Decompress G1: 48→96 bytes│
+│  - 32-byte random   │         │  - Decompress G2: 96→192 bytes│
+│  - Round number     │         │  - Uses @noble/curves        │
+└─────────────────────┘         └──────────────┬───────────────┘
+                                               │
+                                               │ submit_entropy()
+                                               ▼
+                                ┌──────────────────────────────┐
+                                │  Soroban Contract            │
+                                │  (SECURITY-CRITICAL)         │
+                                │                              │
+                                │  1. G1Affine::from_bytes()   │
+                                │  2. g1_is_in_subgroup()      │
+                                │  3. Construct drand message  │
+                                │  4. hash_to_g1() [H2C]       │
+                                │  5. G2Affine::from_bytes()   │
+                                │  6. g2_is_in_subgroup()      │
+                                │  7. pairing_check()          │
+                                │                              │
+                                │  ✓ Entropy verified on-chain │
+                                └──────────────────────────────┘
+```
+
+**Contract Implementation (Rust):**
+
+```rust
+use soroban_sdk::{
+    Bytes, BytesN, Env,
+    crypto::bls12_381::{G1Affine, G2Affine},
+};
+
+fn verify_drand_signature(env: &Env, round: u64, signature: &Bytes) {
+    // 1. Deserialize signature (96 bytes uncompressed G1)
+    let sig_bytes: BytesN<96> = signature.clone().try_into().unwrap();
+    let sig_point = G1Affine::from_bytes(sig_bytes);
+
+    // 2. Verify signature in G1 subgroup
+    if !env.crypto().bls12_381().g1_is_in_subgroup(&sig_point) {
+        panic!("Signature not in G1 subgroup");
+    }
+
+    // 3. Construct drand message: prev_sig || round (big-endian)
+    let prev_sig = get_previous_signature(env, round);
+    let message = concat_bytes(prev_sig, round.to_be_bytes());
+
+    // 4. Hash-to-Curve (on-chain H2C)
+    let dst = Bytes::from_slice(env, b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_");
+    let hashed_point = env.crypto().bls12_381().hash_to_g1(&message, &dst);
+
+    // 5. Verify hashed point in G1 subgroup (should always pass)
+    if !env.crypto().bls12_381().g1_is_in_subgroup(&hashed_point) {
+        panic!("Hashed point not in G1 subgroup");
+    }
+
+    // 6. Deserialize drand public key (192 bytes uncompressed G2)
+    let pubkey_bytes: BytesN<192> = get_drand_pubkey(env).try_into().unwrap();
+    let drand_pubkey = G2Affine::from_bytes(pubkey_bytes);
+
+    // 7. Verify public key in G2 subgroup
+    if !env.crypto().bls12_381().g2_is_in_subgroup(&drand_pubkey) {
+        panic!("Public key not in G2 subgroup");
+    }
+
+    // 8. Pairing verification: e(sig, G2_gen) == e(hash, pubkey)
+    let g2_gen = get_g2_generator(env);
+    let valid = env.crypto().bls12_381().pairing_check(
+        Vec::from_array(env, [sig_point, hashed_point]),
+        Vec::from_array(env, [g2_gen, drand_pubkey])
+    );
+
+    if !valid {
+        panic!("BLS12-381 pairing verification failed");
+    }
+}
+```
+
+**Key Security Properties:**
+
+1. **Signature authenticity**: Pairing check proves signature came from drand's private key
+2. **Message integrity**: Hash-to-curve performed on-chain prevents message tampering
+3. **Replay protection**: Previous signature chaining ensures rounds can't be reused
+4. **Subgroup safety**: All points verified to be in correct subgroups (prevents attacks)
+5. **On-chain verification**: All cryptographic operations happen on-chain (immutable)
+
+**Why relayer can't cheat**: The relayer only provides uncompressed byte arrays. The contract:
+- Re-verifies all cryptographic properties
+- Performs H2C itself (relayer can't influence this)
+- Checks pairing equation (can't be faked without private key)
+- Validates subgroup membership (prevents invalid point attacks)
+
+**Testing:**
+```bash
+# Test full verification flow with live drand data
+bash scripts/testBLS12381.sh
+```
+
+**References:**
+- **CAP-0059**: Stellar protocol specification for BLS12-381 host functions
+- **Drand Quicknet**: Chain hash `52db9ba...` with 3-second rounds
+- **BLS DST**: `BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_` (RFC 9380)
+
 ### Environment Configuration (`environments.toml`)
 
 Multi-environment setup with three tiers:
@@ -159,10 +286,16 @@ after_deploy = "reset\nother_command"  # Commands to run after deployment
 
 ### Contracts Structure
 
-Rust workspace at `contracts/` with example contracts:
-- **guess-the-number**: Demonstrates XLM SAC transfers, PRNG, admin patterns, contract upgrades
-- **fungible-allowlist**: SEP-41 token with OpenZeppelin AllowList + role-based access control
-- **nft-enumerable**: NFT with OpenZeppelin Enumerable extension for token enumeration
+Rust workspace at `contracts/` with game contracts:
+- **gene-splicer**: Main game contract with BLS12-381 entropy verification
+  - `splice_genome()`: Mint Genome Cartridge NFT with PRNG skin
+  - `submit_entropy()`: Submit drand entropy with full CAP-0059 verification
+  - `finalize_splice()`: Use verified entropy to generate creature genes
+  - `verify_drand_signature()`: Full BLS12-381 pairing verification (lines 466-595)
+    - G1Affine/G2Affine deserialization from uncompressed bytes
+    - Subgroup membership checks on all points
+    - On-chain Hash-to-Curve (H2C) with drand DST
+    - Pairing equation verification: `e(sig, G2_gen) == e(H(msg), pubkey)`
 
 **OpenZeppelin Patterns Used:**
 - `#[default_impl]` macro: Reduces boilerplate for trait implementations
@@ -199,10 +332,20 @@ src/
 ├── providers/
 │   ├── WalletProvider.tsx      # Stellar wallet integration (@creit.tech/stellar-wallets-kit)
 │   └── NotificationProvider.tsx # Toast notifications
+├── services/
+│   └── entropyRelayer.ts  # BLS12-381 decompression for drand entropy
 ├── util/               # Utility functions
 ├── App.tsx             # Main app with React Router
 └── main.tsx            # Entry point (QueryClient + providers)
 ```
+
+**Key Services:**
+- **entropyRelayer.ts**: NON-SECURITY-CRITICAL BLS12-381 point decompression
+  - `decompressG1Point()`: 48 bytes compressed → 96 bytes uncompressed (x || y)
+  - `decompressG2Point()`: 96 bytes compressed → 192 bytes uncompressed (x_c0 || x_c1 || y_c0 || y_c1)
+  - `fetchLatestDrandEntropy()`: Fetch from drand quicknet API
+  - `parseAndDecompressEntropy()`: Full entropy preparation for contract submission
+  - `getUncompressedPublicKey()`: Get 192-byte uncompressed drand public key
 
 **Key Patterns:**
 - **Contract Clients**: Auto-generated in `packages/` by `stellar scaffold watch`, imported for use
@@ -224,6 +367,67 @@ When `client = true` in `environments.toml`:
 - Contract in local `contracts/` workspace
 - Name match: `environments.toml` key = underscored `Cargo.toml` name
 - Only works in `development` or `testing` environments
+
+### IMPORTANT: Always Use Stellar Scaffold's Deployment System
+
+**DO NOT manually deploy contracts** when working in development. Always rely on `stellar scaffold watch` to handle deployment and TypeScript bindings generation.
+
+**Why this matters:**
+- Manually deploying contracts creates a mismatch between the deployed contract schema and the auto-generated TypeScript bindings
+- The scaffold watches for contract changes and automatically:
+  1. Compiles Rust contracts to WASM
+  2. Deploys to the configured network
+  3. Calls constructor with `constructor_args` from `environments.toml`
+  4. Runs `after_deploy` commands
+  5. Generates TypeScript client with matching schema in `packages/<contract-name>/`
+  6. Updates the `networks` object with the new contract ID
+
+**Common mistake:**
+```bash
+# ❌ DON'T DO THIS in development
+stellar contract deploy --wasm target/wasm32-unknown-unknown/release/contract.wasm
+stellar contract invoke --id <manual-id> -- initialize --args...
+```
+
+**Correct approach:**
+```bash
+# ✅ DO THIS - let scaffold handle everything
+npm run dev
+# Scaffold watch automatically deploys when you save contract changes
+```
+
+**How to use the auto-generated client:**
+```typescript
+// In src/contracts/contract_name.ts - helper file that uses scaffold-generated package
+import { Client, networks } from 'contract_name';  // From packages/contract_name/
+import { rpcUrl } from './util';
+
+// Use the auto-generated network configuration
+export default new Client({
+  ...networks.standalone,  // Includes contractId from scaffold deployment
+  rpcUrl,
+  allowHttp: true,
+  publicKey: undefined,
+});
+```
+
+```typescript
+// In components
+import ContractClient from "../contracts/contract_name";
+
+// Use directly - no need to instantiate
+const tx = await ContractClient.method_name({ args });
+const result = await tx.simulate();
+```
+
+**If you need to redeploy clean:**
+```bash
+# Remove old deployment state
+rm -rf .stellar packages/contract_name node_modules/.vite
+
+# Restart dev server - scaffold will deploy fresh
+npm run dev
+```
 
 ### Backend Services Architecture (Node.js)
 
@@ -257,22 +461,66 @@ backend/
 
 **Purpose**: Fetch drand randomness beacons and submit to contract for verifiable randomness.
 
+**Architecture: Separation of Security Concerns**
+
+The entropy relay uses a security-critical architecture split:
+
+1. **Relayer (NON-SECURITY-CRITICAL)**:
+   - Fetches drand entropy from quicknet API
+   - Decompresses BLS12-381 points using `@noble/curves`
+   - G1 signature: 48 bytes compressed → 96 bytes uncompressed (x || y)
+   - G2 public key: 96 bytes compressed → 192 bytes uncompressed (x_c0 || x_c1 || y_c0 || y_c1)
+   - Submits uncompressed data to contract
+
+2. **Contract (SECURITY-CRITICAL - CAP-0059)**:
+   - Deserializes G1Affine/G2Affine from uncompressed bytes using `from_bytes()`
+   - Verifies all points are in correct subgroups (`g1_is_in_subgroup`, `g2_is_in_subgroup`)
+   - Constructs drand message: `previous_signature || round_bytes` (big-endian)
+   - Performs on-chain Hash-to-Curve (H2C) using `hash_to_g1()` with DST: `BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_`
+   - Verifies pairing equation: `e(signature, G2_generator) == e(hashed_message, drand_pubkey)`
+
+**Why this split matters**: The relayer cannot forge valid signatures because all cryptographic verification happens on-chain where it cannot be tampered with. The relayer only performs parsing operations that affect performance, not security.
+
 **Key Functions:**
-- Poll drand HTTP API for new randomness rounds
-- Verify drand signatures (CAP-0059 compliance)
-- Submit `submit_entropy(round, randomness, signature)` to contract
+- Poll drand HTTP API for new randomness rounds (`https://api.drand.sh/<chain-hash>/public/latest`)
+- Decompress BLS12-381 signatures and public keys using `@noble/curves/bls12-381.js`
+- Submit `submit_entropy(round, randomness, signature)` with uncompressed 96-byte signature
 - Track last submitted round in memory/DB to avoid duplicates
 - Handle network retries with exponential backoff
 
 **Implementation:**
 ```typescript
-// Example polling logic
-setInterval(async () => {
-  const latestRound = await fetchLatestDrandRound();
-  if (latestRound > lastSubmittedRound) {
-    await submitEntropyToContract(latestRound);
-  }
-}, POLL_INTERVAL);
+// src/services/entropyRelayer.ts
+import { bls12_381 } from '@noble/curves/bls12-381.js';
+
+// Fetch latest drand entropy
+const drandRound = await fetchLatestDrandEntropy();
+
+// Decompress G1 signature: 48 bytes → 96 bytes
+const signatureHex = bytesToHex(drandRound.signature);
+const point = bls12_381.G1.Point.fromHex(signatureHex);
+const affine = point.toAffine();
+const uncompressed = concatBytes(
+  fieldElementToBytes(affine.x),
+  fieldElementToBytes(affine.y)
+);
+
+// Submit to contract for on-chain verification
+await contract.submit_entropy({
+  submitter: relayerAddress,
+  round: drandRound.round,
+  randomness: randomnessBytes,
+  signature: uncompressed  // 96 bytes
+});
+```
+
+**Testing BLS12-381 Verification:**
+```bash
+# Run end-to-end test
+bash scripts/testBLS12381.sh
+
+# This fetches live drand entropy, decompresses it, and submits to contract
+# Contract performs full BLS12-381 verification with subgroup checks and pairing
 ```
 
 #### Service 2: NFT Image Generation & Pinning (Pinata)
@@ -353,6 +601,7 @@ const metadataUpload = await pinata.upload.json(metadata);
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^14.2.0",
+    "@noble/curves": "^1.3.0",    // BLS12-381 decompression for drand
     "pinata": "^1.0.0",
     "canvas": "^2.11.2",
     "dotenv": "^16.4.5",
@@ -366,6 +615,13 @@ const metadataUpload = await pinata.upload.json(metadata);
   }
 }
 ```
+
+**Key Dependencies:**
+- `@noble/curves`: Used by relayer to decompress BLS12-381 G1/G2 points from drand
+- `@stellar/stellar-sdk`: Stellar blockchain interaction
+- `pinata`: IPFS pinning service
+- `canvas`: Server-side image generation for NFTs
+- `winston`: Structured logging
 
 #### Environment Variables (backend/.env)
 
@@ -543,6 +799,34 @@ When writing Soroban contracts, follow these principles:
 9. **Testing**: Comprehensive unit tests, integration tests, property-based testing
 
 10. **Code Style**: Strictly follow `cargo fmt` and `cargo clippy` rules; prefer declarative over imperative code
+
+## Testing & Scripts
+
+### BLS12-381 Verification Testing
+
+```bash
+# End-to-end test with live drand data
+bash scripts/testBLS12381.sh
+# Fetches latest drand entropy, decompresses, and submits to contract
+# Verifies full BLS12-381 pairing check with all security properties
+
+# Helper: Get uncompressed drand public key (for contract initialization)
+npx tsx scripts/getDrandPubkey.ts
+# Outputs 192-byte hex string for --drand_public_key parameter
+
+# Helper: Fetch and decompress drand entropy (JSON output)
+npx tsx scripts/fetchAndDecompressDrand.ts
+# Returns: {"round": 123, "randomness": "0x...", "signature": "0x..."}
+```
+
+**Test Scripts:**
+- `scripts/testBLS12381.sh`: Full verification flow test
+  - Fetches live drand quicknet entropy
+  - Decompresses BLS12-381 signature (G1: 48→96 bytes)
+  - Submits to contract for on-chain verification
+  - Validates all 8 verification steps pass
+- `scripts/getDrandPubkey.ts`: Extract uncompressed drand public key
+- `scripts/fetchAndDecompressDrand.ts`: Fetch and decompress entropy helper
 
 ## Debugging
 

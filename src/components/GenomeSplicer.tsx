@@ -1,9 +1,8 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { Button, Card, Heading, Text } from "@stellar/design-system";
 import { useWallet } from "../hooks/useWallet";
 import { useWalletBalance } from "../hooks/useWalletBalance";
-import { Client } from "gene_splicer";
-import { rpcUrl } from "../contracts/util";
+import GeneSplicer, { createGeneSplicerClient } from "../contracts/gene_splicer";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 interface CartridgeData {
@@ -12,43 +11,218 @@ interface CartridgeData {
   skin_id: number;
   splice_round: bigint;
   created_at: bigint;
+  finalized: boolean;
 }
+
+interface Gene {
+  id: number;
+  rarity: { tag: string };
+}
+
+interface CreatureData {
+  id: number;
+  owner: string;
+  skin_id: number;
+  head_gene: Gene;
+  torso_gene: Gene;
+  legs_gene: Gene;
+  finalized_at: bigint;
+  entropy_round: bigint;
+}
+
+// Component for a single cartridge row with entropy checking
+const CartridgeRow: React.FC<{
+  cartridge: CartridgeData;
+  onFinalized: () => void;
+}> = ({ cartridge, onFinalized }) => {
+  const wallet = useWallet();
+
+  // Check if entropy is available for this cartridge's splice round
+  const { data: entropyAvailable } = useQuery<boolean>({
+    queryKey: ["entropy-available", String(cartridge.splice_round)],
+    queryFn: async (): Promise<boolean> => {
+      try {
+        const tx = await GeneSplicer.get_entropy({
+          round: cartridge.splice_round,
+        });
+        const result = await tx.simulate();
+        return result.result !== null && result.result !== undefined;
+      } catch {
+        return false;
+      }
+    },
+    enabled: !cartridge.finalized,
+    refetchInterval: 5000, // Poll every 5 seconds
+  });
+
+  // Finalize mutation
+  const finalizeMutation = useMutation<number, Error>({
+    mutationFn: async (): Promise<number> => {
+      if (!wallet?.address) throw new Error("Wallet not connected");
+      if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
+
+      // Create client with user's public key for write operations
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+      const client = createGeneSplicerClient(wallet.address);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      const tx = await client.finalize_splice({
+        cartridge_id: cartridge.id,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      const signed = await tx.signAndSend({
+        signTransaction: wallet.signTransaction,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      return Number(signed.result);
+    },
+    onSuccess: () => {
+      onFinalized();
+    },
+  });
+
+  return (
+    <div
+      style={{
+        padding: "0.75rem",
+        marginBottom: "0.5rem",
+        backgroundColor: "#f5f5f5",
+        borderRadius: "4px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}
+    >
+      <div>
+        <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
+          Cartridge #{cartridge.id}
+        </Text>
+        <Text as="p" size="sm" style={{ color: "#666" }}>
+          Skin ID: {cartridge.skin_id}
+        </Text>
+      </div>
+
+      {cartridge.finalized ? (
+        <Text as="p" size="sm" style={{ color: "green", fontWeight: "bold" }}>
+          ✓ Finalized
+        </Text>
+      ) : entropyAvailable ? (
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => finalizeMutation.mutate()}
+          disabled={finalizeMutation.isPending}
+        >
+          {finalizeMutation.isPending ? "Finalizing..." : "Finalize"}
+        </Button>
+      ) : (
+        <Button size="sm" variant="secondary" disabled>
+          <span
+            style={{
+              animation: "pulse 2s ease-in-out infinite",
+            }}
+          >
+            Sequencing...
+          </span>
+        </Button>
+      )}
+
+      {finalizeMutation.isError && (
+        <Text as="p" size="sm" style={{ color: "red", marginLeft: "0.5rem" }}>
+          Error: {finalizeMutation.error.message}
+        </Text>
+      )}
+    </div>
+  );
+};
 
 export const GenomeSplicer: React.FC = () => {
   const wallet = useWallet();
   const { updateBalance } = useWalletBalance();
   const [lastMintedId, setLastMintedId] = useState<number | null>(null);
 
-  // Create contract client with wallet's public key
-  const geneSplicer = useMemo(
-    () =>
-      new Client({
-        networkPassphrase: "Standalone Network ; February 2017",
-        contractId: "CDIQSBTIKKMJSD3ITTYOHMF7FYIIUQE4VO7HZJTS2CQS5K7PYHRB2L76",
-        rpcUrl,
-        allowHttp: true,
-        publicKey: wallet?.address,
-      }),
-    [wallet?.address],
-  );
-
-  // Query user's cartridges
-  const { data: cartridges, refetch: refetchCartridges } = useQuery<number[]>({
+  // Query user's cartridges with full details
+  const { data: cartridges, refetch: refetchCartridges } = useQuery<
+    CartridgeData[]
+  >({
     queryKey: ["user-cartridges", wallet?.address],
-    queryFn: async (): Promise<number[]> => {
+    queryFn: async (): Promise<CartridgeData[]> => {
       if (!wallet?.address) return [];
       try {
-        const tx = await geneSplicer.get_user_cartridges({
+        const tx = await GeneSplicer.get_user_cartridges({
           user: wallet.address,
         });
         const result = await tx.simulate();
-        return result.result ?? [];
-      } catch {
+        const cartridgeIds = (result.result ?? []) as number[];
+
+        // Fetch full details for each cartridge
+        const cartridgeDetails = await Promise.all(
+          cartridgeIds.map(async (id) => {
+            try {
+              const detailTx = await GeneSplicer.get_cartridge({
+                cartridge_id: id,
+              });
+              const detailResult = await detailTx.simulate();
+              return detailResult.result as CartridgeData | null;
+            } catch (err) {
+              console.error(`Failed to fetch cartridge ${id}:`, err);
+              return null;
+            }
+          })
+        );
+
+        return cartridgeDetails.filter(
+          (c): c is CartridgeData => c !== null && c !== undefined
+        );
+      } catch (err) {
+        console.error("Failed to fetch cartridges:", err);
         return [];
       }
     },
 
     enabled: !!wallet?.address,
+    refetchInterval: 5000, // Poll every 5 seconds for updates
+  });
+
+  // Query user's creatures with full details
+  const { data: creatures } = useQuery<CreatureData[]>({
+    queryKey: ["user-creatures", wallet?.address],
+    queryFn: async (): Promise<CreatureData[]> => {
+      if (!wallet?.address) return [];
+      try {
+        const tx = await GeneSplicer.get_user_creatures({
+          user: wallet.address,
+        });
+        const result = await tx.simulate();
+        const creatureIds = (result.result ?? []) as number[];
+
+        // Fetch full details for each creature
+        const creatureDetails = await Promise.all(
+          creatureIds.map(async (id) => {
+            try {
+              const detailTx = await GeneSplicer.get_creature({
+                creature_id: id,
+              });
+              const detailResult = await detailTx.simulate();
+              return detailResult.result as CreatureData | null;
+            } catch (err) {
+              console.error(`Failed to fetch creature ${id}:`, err);
+              return null;
+            }
+          })
+        );
+
+        return creatureDetails.filter(
+          (c): c is CreatureData => c !== null && c !== undefined
+        );
+      } catch (err) {
+        console.error("Failed to fetch creatures:", err);
+        return [];
+      }
+    },
+
+    enabled: !!wallet?.address,
+    refetchInterval: 5000, // Poll every 5 seconds for updates
   });
 
   // Query cartridge details
@@ -57,7 +231,7 @@ export const GenomeSplicer: React.FC = () => {
     queryFn: async (): Promise<CartridgeData | null> => {
       if (!lastMintedId) return null;
       try {
-        const tx = await geneSplicer.get_cartridge({
+        const tx = await GeneSplicer.get_cartridge({
           cartridge_id: lastMintedId,
         });
         const result = await tx.simulate();
@@ -75,13 +249,19 @@ export const GenomeSplicer: React.FC = () => {
       if (!wallet?.address) throw new Error("Wallet not connected");
       if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
 
-      const tx = await geneSplicer.splice_genome({
+      // Create client with user's public key for write operations
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+      const client = createGeneSplicerClient(wallet.address);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      const tx = await client.splice_genome({
         user: wallet.address,
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const signed = await tx.signAndSend({
         signTransaction: wallet.signTransaction,
       });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       return Number(signed.result);
     },
     onSuccess: (cartridgeId) => {
@@ -166,19 +346,123 @@ export const GenomeSplicer: React.FC = () => {
             Your Genome Cartridges ({cartridges.length})
           </Heading>
           <div style={{ marginTop: "0.5rem" }}>
-            {cartridges.map((id: number) => (
+            {cartridges.map((cartridge) => (
+              <CartridgeRow
+                key={cartridge.id}
+                cartridge={cartridge}
+                onFinalized={() => void refetchCartridges()}
+              />
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {creatures && creatures.length > 0 && (
+        <Card>
+          <Heading as="h3" size="sm">
+            Your Creatures ({creatures.length})
+          </Heading>
+          <div style={{ marginTop: "0.5rem" }}>
+            {creatures.map((creature) => (
               <div
-                key={id}
+                key={creature.id}
                 style={{
-                  padding: "0.5rem",
+                  padding: "0.75rem",
                   marginBottom: "0.5rem",
-                  backgroundColor: "#f5f5f5",
+                  backgroundColor: "#e8f5e9",
                   borderRadius: "4px",
                 }}
               >
-                <Text as="p" size="sm">
-                  Cartridge #{id}
+                <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
+                  Creature #{creature.id}
                 </Text>
+                <Text as="p" size="sm" style={{ color: "#666" }}>
+                  Skin ID: {creature.skin_id}
+                </Text>
+                <div
+                  style={{
+                    marginTop: "0.5rem",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "0.5rem",
+                      backgroundColor: "white",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
+                      Head #{creature.head_gene.id}
+                    </Text>
+                    <Text
+                      as="p"
+                      size="sm"
+                      style={{
+                        color:
+                          creature.head_gene.rarity.tag === "Legendary"
+                            ? "#ff9800"
+                            : creature.head_gene.rarity.tag === "Rare"
+                            ? "#9c27b0"
+                            : "#666",
+                      }}
+                    >
+                      {creature.head_gene.rarity.tag}
+                    </Text>
+                  </div>
+                  <div
+                    style={{
+                      padding: "0.5rem",
+                      backgroundColor: "white",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
+                      Torso #{creature.torso_gene.id}
+                    </Text>
+                    <Text
+                      as="p"
+                      size="sm"
+                      style={{
+                        color:
+                          creature.torso_gene.rarity.tag === "Legendary"
+                            ? "#ff9800"
+                            : creature.torso_gene.rarity.tag === "Rare"
+                            ? "#9c27b0"
+                            : "#666",
+                      }}
+                    >
+                      {creature.torso_gene.rarity.tag}
+                    </Text>
+                  </div>
+                  <div
+                    style={{
+                      padding: "0.5rem",
+                      backgroundColor: "white",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
+                      Legs #{creature.legs_gene.id}
+                    </Text>
+                    <Text
+                      as="p"
+                      size="sm"
+                      style={{
+                        color:
+                          creature.legs_gene.rarity.tag === "Legendary"
+                            ? "#ff9800"
+                            : creature.legs_gene.rarity.tag === "Rare"
+                            ? "#9c27b0"
+                            : "#666",
+                      }}
+                    >
+                      {creature.legs_gene.rarity.tag}
+                    </Text>
+                  </div>
+                </div>
               </div>
             ))}
           </div>

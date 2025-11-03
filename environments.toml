@@ -13,11 +13,15 @@ default = true # Optional. Whether to use this account as the `--source` for com
 # Gene Splicer - Main game contract
 [development.contracts.gene_splicer]
 client = true
-constructor_args = """
---admin me
---xlm_token CDMLFMKMMD7MWZP3FKUBZPVHTUEDLSX4BYGYKH4GCESXYHS3IHQ4EIG4
---cartridge_skin_count 10
-"""
+# Temporarily commented out due to scaffold bug - initialize manually after deployment
+# after_deploy = """
+# initialize \
+#   --admin me \
+#   --xlm_token CDMLFMKMMD7MWZP3FKUBZPVHTUEDLSX4BYGYKH4GCESXYHS3IHQ4EIG4 \
+#   --cartridge_skin_count 10 \
+#   --dev_mode true \
+#   --drand_public_key 83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a
+# """
 
 # Coming Soon: Specify live contracts to bind & import in this project using the given name.
 # During initialization, these contracts will also be "spooned" into the development network,
