@@ -6,31 +6,11 @@ import GeneSplicer, {
   createGeneSplicerClient,
 } from "../contracts/gene_splicer";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import type { GenomeCartridge, Creature } from "gene_splicer";
 
-interface CartridgeData {
-  id: number;
-  owner: string;
-  skin_id: number;
-  splice_round: bigint;
-  created_at: bigint;
-  finalized: boolean;
-}
-
-interface Gene {
-  id: number;
-  rarity: { tag: string };
-}
-
-interface CreatureData {
-  id: number;
-  owner: string;
-  skin_id: number;
-  head_gene: Gene;
-  torso_gene: Gene;
-  legs_gene: Gene;
-  finalized_at: bigint;
-  entropy_round: bigint;
-}
+// Type aliases for better readability in the component
+type CartridgeData = GenomeCartridge;
+type CreatureData = Creature;
 
 // Component for a single cartridge row with entropy checking
 const CartridgeRow: React.FC<{
@@ -64,18 +44,14 @@ const CartridgeRow: React.FC<{
       if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
 
       // Create client with user's public key for write operations
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
       const client = createGeneSplicerClient(wallet.address);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const tx = await client.finalize_splice({
         cartridge_id: cartridge.id,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const signed = await tx.signAndSend({
         signTransaction: wallet.signTransaction,
       });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       return Number(signed.result);
     },
     onSuccess: () => {
@@ -237,7 +213,7 @@ export const GenomeSplicer: React.FC = () => {
           cartridge_id: lastMintedId,
         });
         const result = await tx.simulate();
-        return (result.result ?? null) as CartridgeData | null;
+        return result.result ?? null;
       } catch {
         return null;
       }
@@ -252,18 +228,14 @@ export const GenomeSplicer: React.FC = () => {
       if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
 
       // Create client with user's public key for write operations
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
       const client = createGeneSplicerClient(wallet.address);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const tx = await client.splice_genome({
         user: wallet.address,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const signed = await tx.signAndSend({
         signTransaction: wallet.signTransaction,
       });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       return Number(signed.result);
     },
     onSuccess: (cartridgeId) => {
