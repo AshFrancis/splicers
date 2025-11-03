@@ -14,17 +14,16 @@ This project has a comprehensive testing setup covering contract tests, unit tes
 ## Running Tests
 
 ```bash
-# Run all tests
-npm test
+# Unit/Integration Tests
+npm test              # Run all unit tests
+npm run test:watch    # Watch mode
+npm run test:ui       # Vitest UI
+npm run test:coverage # Coverage report
 
-# Watch mode
-npm run test:watch
-
-# With UI
-npm run test:ui
-
-# Coverage
-npm run test:coverage
+# E2E Tests
+npm run test:e2e       # Run Playwright tests
+npm run test:e2e:ui    # Playwright UI
+npm run test:e2e:debug # Debug mode
 ```
 
 ## Test Structure
@@ -46,7 +45,11 @@ npm run test:coverage
 
 - **Location**: `e2e/`
 - **Coverage**: Full user flows on local Stellar network
-- **Run**: `npx playwright test`
+- **Prerequisites**:
+  - Local Stellar network running
+  - Contract deployed with dev_mode=true
+  - Test wallet with funded account
+- **Manual Testing**: See instructions in `e2e/cartridge-lifecycle.spec.ts`
 
 ## Test Utilities
 
