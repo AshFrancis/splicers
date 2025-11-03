@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { Button, Card, Heading, Text } from "@stellar/design-system";
 import { useWallet } from "../hooks/useWallet";
 import { useWalletBalance } from "../hooks/useWalletBalance";
-import GeneSplicer, {
-  createGeneSplicerClient,
-} from "../contracts/gene_splicer";
+import GeneSplicer from "../contracts/gene_splicer";
+import { createGeneSplicerClient } from "../contracts/util";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { GenomeCartridge, Creature } from "gene_splicer";
 
@@ -44,7 +43,7 @@ const CartridgeRow: React.FC<{
       if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
 
       // Create client with user's public key for write operations
-      const client = createGeneSplicerClient(wallet.address);
+      const client = await createGeneSplicerClient(wallet.address);
       const tx = await client.finalize_splice({
         cartridge_id: cartridge.id,
       });
@@ -228,7 +227,7 @@ export const GenomeSplicer: React.FC = () => {
       if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
 
       // Create client with user's public key for write operations
-      const client = createGeneSplicerClient(wallet.address);
+      const client = await createGeneSplicerClient(wallet.address);
       const tx = await client.splice_genome({
         user: wallet.address,
       });

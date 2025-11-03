@@ -76,3 +76,27 @@ export const network: Network = {
   rpcUrl: rpcUrl,
   horizonUrl: horizonUrl,
 };
+
+/**
+ * Create a Gene Splicer client with a specific public key for write operations.
+ * This helper function is needed because the generated contract client is gitignored.
+ * @param publicKey - The user's wallet address to use for signing transactions
+ * @returns A new Client instance configured with the provided public key
+ */
+export async function createGeneSplicerClient(publicKey: string) {
+  // Import type at runtime from generated package to avoid gitignored file dependency
+  const GeneSplicerModule = await import("gene_splicer");
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const contractId: string =
+    import.meta.env.PUBLIC_GENE_SPLICER_CONTRACT_ID ||
+    "CCUXEQHSH447LROB3Z27POXMIU3WWNAAAMDD5U25ZBJ3W62IRLKDWU3M";
+
+  return new GeneSplicerModule.Client({
+    networkPassphrase,
+    contractId,
+    rpcUrl,
+    allowHttp: stellarNetwork === "LOCAL",
+    publicKey,
+  });
+}
