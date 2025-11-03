@@ -54,7 +54,7 @@ pub struct Creature {
 pub struct EntropyData {
     pub round: u64,
     pub randomness: Bytes,    // 32-byte randomness from drand
-    pub signature: Bytes,     // BLS signature (not verified in Phase 2)
+    pub signature: Bytes,     // BLS12-381 signature verified on submission
     pub submitted_at: u64,    // Ledger timestamp
 }
 

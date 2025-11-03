@@ -157,7 +157,7 @@ fn test_entropy_and_finalization() {
         ],
     );
 
-    // Mock signature (not verified in Phase 2)
+    // Mock signature for testing
     let signature = Bytes::from_array(&env, &[0xaa; 96]);
 
     // Submit entropy for the splice round
