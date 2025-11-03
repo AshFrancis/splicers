@@ -35,6 +35,9 @@ lerna-debug.log*
 # macOS-specific files
 .DS_Store
 
+# IDE files
+.idea/
+
 # generated contract clients
 packages/*
 # if you have other workspace packages, add them here
