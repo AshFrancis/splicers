@@ -17,6 +17,25 @@ const queryClient = new QueryClient({
   },
 });
 
+// Force dark mode - save preference so SDS respects it
+localStorage.setItem("sds-theme", "dark");
+document.documentElement.classList.add("sds-theme-dark");
+document.documentElement.classList.remove("sds-theme-light");
+document.body.classList.add("sds-theme-dark");
+document.body.classList.remove("sds-theme-light");
+
+// Keep watching in case SDS tries to override
+const observer = new MutationObserver(() => {
+  if (document.body.classList.contains("sds-theme-light")) {
+    document.body.classList.remove("sds-theme-light");
+    document.body.classList.add("sds-theme-dark");
+  }
+});
+observer.observe(document.body, {
+  attributes: true,
+  attributeFilter: ["class"],
+});
+
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <NotificationProvider>

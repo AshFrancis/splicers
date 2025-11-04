@@ -11,7 +11,7 @@ const ConnectAccount: React.FC = () => {
         display: "flex",
         flexDirection: "row",
         alignItems: "center",
-        gap: "10px",
+        gap: "1.5rem",
         verticalAlign: "middle",
       }}
     >

@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button, Card, Heading, Text } from "@stellar/design-system";
 import { useWallet } from "../hooks/useWallet";
 import { useWalletBalance } from "../hooks/useWalletBalance";
+import { useNotification } from "../hooks/useNotification";
 import GeneSplicer from "../contracts/gene_splicer";
 import { createGeneSplicerClient } from "../contracts/util";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -11,6 +12,22 @@ import {
   fetchDrandEntropy,
   parseAndDecompressEntropy,
 } from "../services/entropyRelayer";
+
+interface GeneTrait {
+  id: number;
+  name: string;
+  type: string;
+  bodyPart: string;
+  variant: number;
+  rarity: string;
+  folder: string;
+}
+
+interface GeneTraitsMetadata {
+  version: string;
+  description: string;
+  genes: GeneTrait[];
+}
 
 // Constants
 const POLL_INTERVAL_MS = 5000;
@@ -25,6 +42,8 @@ const CartridgeRow: React.FC<{
   onFinalized: () => void;
 }> = React.memo(({ cartridge, onFinalized }) => {
   const wallet = useWallet();
+  const { addNotification } = useNotification();
+  const [isClicked, setIsClicked] = useState(false);
 
   // Check if the drand round has passed (round is available)
   // Drand quicknet: genesis = 1692803367, period = 3s
@@ -72,7 +91,15 @@ const CartridgeRow: React.FC<{
       return Number(signed.result);
     },
     onSuccess: () => {
+      // Don't reset isClicked - keep showing "Printing Creature..." until cartridge.finalized updates
       onFinalized();
+    },
+    onError: (error) => {
+      setIsClicked(false);
+      // Don't show notification for user rejection
+      if (!error.message.includes("user rejected")) {
+        addNotification(error.message, "error");
+      }
     },
   });
 
@@ -81,7 +108,7 @@ const CartridgeRow: React.FC<{
       style={{
         padding: "0.75rem",
         marginBottom: "0.5rem",
-        backgroundColor: "#f5f5f5",
+        backgroundColor: "var(--cartridge-bg)",
         borderRadius: "4px",
         display: "flex",
         justifyContent: "space-between",
@@ -98,36 +125,29 @@ const CartridgeRow: React.FC<{
       </div>
 
       {cartridge.finalized ? (
-        <Text as="p" size="sm" style={{ color: "green", fontWeight: "bold" }}>
-          ✓ Finalized
-        </Text>
+        <Button size="sm" variant="secondary" disabled>
+          Creature Printed
+        </Button>
       ) : roundAvailable ? (
         <Button
           size="sm"
           variant="primary"
-          onClick={() => finalizeMutation.mutate()}
-          disabled={finalizeMutation.isPending}
+          onClick={() => {
+            setIsClicked(true);
+            finalizeMutation.mutate();
+          }}
+          disabled={finalizeMutation.isPending || isClicked}
         >
-          {finalizeMutation.isPending
-            ? "Printing Creature..."
-            : "Sequencing Complete... Print Creature"}
+          {finalizeMutation.isPending || isClicked ? (
+            <span className="sequencing-text">Printing Creature...</span>
+          ) : (
+            "Sequencing Complete... Print Creature"
+          )}
         </Button>
       ) : (
         <Button size="sm" variant="secondary" disabled>
-          <span
-            style={{
-              animation: "pulse 2s ease-in-out infinite",
-            }}
-          >
-            Sequencing...
-          </span>
+          <span className="sequencing-text">Sequencing...</span>
         </Button>
-      )}
-
-      {finalizeMutation.isError && (
-        <Text as="p" size="sm" style={{ color: "red", marginLeft: "0.5rem" }}>
-          Error: {finalizeMutation.error.message}
-        </Text>
       )}
     </div>
   );
@@ -139,6 +159,40 @@ export const GenomeSplicer: React.FC = () => {
   const wallet = useWallet();
   const { updateBalance } = useWalletBalance();
   const [lastMintedId, setLastMintedId] = useState<number | null>(null);
+  const [geneTraits, setGeneTraits] = useState<GeneTrait[]>([]);
+
+  // Load gene traits metadata
+  useEffect(() => {
+    fetch("/metadata/gene-traits.json")
+      .then((res) => res.json())
+      .then((data: GeneTraitsMetadata) => setGeneTraits(data.genes))
+      .catch((err) => console.error("Failed to load gene traits:", err));
+  }, []);
+
+  // Helper to get trait name by gene ID
+  const getTraitName = (geneId: number) => {
+    const trait = geneTraits.find((t) => t.id === geneId % 15);
+    return trait?.name || `Gene #${geneId}`;
+  };
+
+  // Calculate power level based on rarity
+  const calculatePowerLevel = (creature: CreatureData) => {
+    const rarityToPower: Record<string, number> = {
+      common: 3,
+      rare: 6,
+      legendary: 10,
+    };
+
+    const headRarity = creature.head_gene.rarity.tag.toLowerCase();
+    const torsoRarity = creature.torso_gene.rarity.tag.toLowerCase();
+    const legsRarity = creature.legs_gene.rarity.tag.toLowerCase();
+
+    return (
+      (rarityToPower[headRarity] || 3) +
+      (rarityToPower[torsoRarity] || 3) +
+      (rarityToPower[legsRarity] || 3)
+    );
+  };
 
   // Query user's cartridges with full details
   const { data: cartridges, refetch: refetchCartridges } = useQuery<
@@ -314,7 +368,7 @@ export const GenomeSplicer: React.FC = () => {
             style={{
               marginTop: "1rem",
               padding: "1rem",
-              backgroundColor: "#e8f5e9",
+              backgroundColor: "var(--success-bg)",
               borderRadius: "4px",
             }}
           >
@@ -365,16 +419,16 @@ export const GenomeSplicer: React.FC = () => {
                   padding: "1rem",
                   marginBottom: "1rem",
                   background:
-                    "linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%)",
+                    "linear-gradient(135deg, var(--bg-card-gradient-start) 0%, var(--bg-card-gradient-end) 100%)",
                   borderRadius: "12px",
-                  border: "2px solid #d0d0d0",
+                  border: "2px solid var(--border-card)",
                 }}
               >
                 <div
                   style={{
                     display: "flex",
                     gap: "1.5rem",
-                    alignItems: "flex-start",
+                    alignItems: "center",
                     flexWrap: "wrap",
                   }}
                 >
@@ -382,10 +436,14 @@ export const GenomeSplicer: React.FC = () => {
                   <div
                     style={{
                       flex: "0 0 auto",
-                      backgroundColor: "white",
+                      backgroundColor: "var(--creature-box-bg)",
                       borderRadius: "8px",
                       padding: "0.5rem",
                       boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                      width: "200px",
+                      height: "280px",
+                      paddingTop: "40px",
+                      overflow: "hidden",
                     }}
                   >
                     <CreatureRenderer creature={creature} size={200} />
@@ -393,20 +451,102 @@ export const GenomeSplicer: React.FC = () => {
 
                   {/* Creature info */}
                   <div style={{ flex: "1", minWidth: "250px" }}>
-                    <Text
-                      as="p"
-                      size="md"
-                      style={{ fontWeight: "bold", marginBottom: "0.5rem" }}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        marginBottom: "1rem",
+                      }}
                     >
-                      Creature #{creature.id}
-                    </Text>
-                    <Text
-                      as="p"
-                      size="sm"
-                      style={{ color: "#666", marginBottom: "1rem" }}
-                    >
-                      Skin Variant: {creature.skin_id}
-                    </Text>
+                      <div>
+                        <Text
+                          as="p"
+                          size="md"
+                          style={{ fontWeight: "bold", marginBottom: "0.5rem" }}
+                        >
+                          Creature #{creature.id}
+                        </Text>
+                        <Text as="p" size="sm" style={{ color: "#666" }}>
+                          Skin Variant: {creature.skin_id}
+                        </Text>
+                      </div>
+
+                      {/* Power Level */}
+                      {(() => {
+                        const powerLevel = calculatePowerLevel(creature);
+                        const powerPercentage = (powerLevel / 30) * 100;
+                        // Color gradient from grey to red based on power level
+                        const getPowerColor = (power: number) => {
+                          if (power <= 12) return "#9ca3af"; // grey (weak)
+                          if (power <= 18) return "#f59e0b"; // orange (medium)
+                          if (power <= 24) return "#ef4444"; // red (strong)
+                          return "#dc2626"; // dark red (legendary)
+                        };
+
+                        return (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "flex-end",
+                              gap: "0.25rem",
+                            }}
+                          >
+                            <Text
+                              as="p"
+                              size="xs"
+                              style={{
+                                color: "#666",
+                                fontWeight: "600",
+                                marginBottom: "0.25rem",
+                              }}
+                            >
+                              POWER LEVEL
+                            </Text>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.5rem",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: "100px",
+                                  height: "8px",
+                                  backgroundColor: "var(--power-bar-bg)",
+                                  borderRadius: "4px",
+                                  overflow: "hidden",
+                                  border: "1px solid var(--border-gene-card)",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: `${powerPercentage}%`,
+                                    height: "100%",
+                                    backgroundColor: getPowerColor(powerLevel),
+                                    transition: "width 0.3s ease",
+                                  }}
+                                />
+                              </div>
+                              <Text
+                                as="p"
+                                size="sm"
+                                style={{
+                                  color: getPowerColor(powerLevel),
+                                  fontWeight: "bold",
+                                  fontSize: "1.1rem",
+                                  minWidth: "45px",
+                                }}
+                              >
+                                {powerLevel}/30
+                              </Text>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
 
                     {/* Gene details */}
                     <div
@@ -420,7 +560,7 @@ export const GenomeSplicer: React.FC = () => {
                       <div
                         style={{
                           padding: "0.75rem",
-                          backgroundColor: "white",
+                          backgroundColor: "var(--gene-card-bg)",
                           borderRadius: "6px",
                           border: `2px solid ${
                             creature.head_gene.rarity.tag === "Legendary"
@@ -443,6 +583,17 @@ export const GenomeSplicer: React.FC = () => {
                         </Text>
                         <Text
                           as="p"
+                          size="xs"
+                          style={{
+                            color: "#aaa",
+                            marginTop: "0.25rem",
+                            marginBottom: "0.25rem",
+                          }}
+                        >
+                          {getTraitName(creature.head_gene.id)}
+                        </Text>
+                        <Text
+                          as="p"
                           size="sm"
                           style={{
                             color:
@@ -460,7 +611,7 @@ export const GenomeSplicer: React.FC = () => {
                       <div
                         style={{
                           padding: "0.75rem",
-                          backgroundColor: "white",
+                          backgroundColor: "var(--gene-card-bg)",
                           borderRadius: "6px",
                           border: `2px solid ${
                             creature.torso_gene.rarity.tag === "Legendary"
@@ -476,10 +627,21 @@ export const GenomeSplicer: React.FC = () => {
                           size="xs"
                           style={{ color: "#666", marginBottom: "0.25rem" }}
                         >
-                          TORSO
+                          BODY
                         </Text>
                         <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
                           #{creature.torso_gene.id}
+                        </Text>
+                        <Text
+                          as="p"
+                          size="xs"
+                          style={{
+                            color: "#aaa",
+                            marginTop: "0.25rem",
+                            marginBottom: "0.25rem",
+                          }}
+                        >
+                          {getTraitName(creature.torso_gene.id)}
                         </Text>
                         <Text
                           as="p"
@@ -500,7 +662,7 @@ export const GenomeSplicer: React.FC = () => {
                       <div
                         style={{
                           padding: "0.75rem",
-                          backgroundColor: "white",
+                          backgroundColor: "var(--gene-card-bg)",
                           borderRadius: "6px",
                           border: `2px solid ${
                             creature.legs_gene.rarity.tag === "Legendary"
@@ -520,6 +682,17 @@ export const GenomeSplicer: React.FC = () => {
                         </Text>
                         <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
                           #{creature.legs_gene.id}
+                        </Text>
+                        <Text
+                          as="p"
+                          size="xs"
+                          style={{
+                            color: "#aaa",
+                            marginTop: "0.25rem",
+                            marginBottom: "0.25rem",
+                          }}
+                        >
+                          {getTraitName(creature.legs_gene.id)}
                         </Text>
                         <Text
                           as="p"

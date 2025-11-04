@@ -8,8 +8,8 @@ import Debugger from "./pages/Debugger.tsx";
 const AppLayout: React.FC = () => (
   <main>
     <Layout.Header
-      projectId="My App"
-      projectTitle="My App"
+      projectId="Splicers"
+      projectTitle="Splicers"
       contentRight={
         <>
           <nav>
@@ -39,19 +39,6 @@ const AppLayout: React.FC = () => (
     <ErrorBoundary>
       <Outlet />
     </ErrorBoundary>
-    <Layout.Footer>
-      <span>
-        © {new Date().getFullYear()} My App. Licensed under the{" "}
-        <a
-          href="http://www.apache.org/licenses/LICENSE-2.0"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Apache License, Version 2.0
-        </a>
-        .
-      </span>
-    </Layout.Footer>
   </main>
 );
 

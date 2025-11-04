@@ -13,9 +13,6 @@ const formatNetworkName = (name: string) =>
 
 const appNetwork = formatNetworkName(stellarNetwork);
 
-const bgColor = "#F0F2F5";
-const textColor = "#4A5362";
-
 const NetworkPill: React.FC = () => {
   const { network, address } = useWallet();
 
@@ -36,10 +33,9 @@ const NetworkPill: React.FC = () => {
   return (
     <div
       style={{
-        backgroundColor: bgColor,
-        color: textColor,
+        backgroundColor: "var(--sds-clr-base-03)",
+        color: "var(--sds-clr-text-primary)",
         padding: "4px 10px",
-        borderRadius: "16px",
         fontSize: "12px",
         fontWeight: "bold",
         display: "flex",

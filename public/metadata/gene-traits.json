@@ -1,0 +1,126 @@
+{
+  "version": "1.0.0",
+  "description": "Gene trait metadata for creature body parts (head, body, legs)",
+  "genes": [
+    {
+      "id": 0,
+      "name": "Dark Oracle 1",
+      "type": "Dark Oracle",
+      "variant": 1,
+      "rarity": "rare",
+      "folder": "Dark_Oracle_1"
+    },
+    {
+      "id": 1,
+      "name": "Dark Oracle 2",
+      "type": "Dark Oracle",
+      "variant": 2,
+      "rarity": "rare",
+      "folder": "Dark_Oracle_2"
+    },
+    {
+      "id": 2,
+      "name": "Dark Oracle 3",
+      "type": "Dark Oracle",
+      "variant": 3,
+      "rarity": "rare",
+      "folder": "Dark_Oracle_3"
+    },
+    {
+      "id": 3,
+      "name": "Golem 1",
+      "type": "Golem",
+      "variant": 1,
+      "rarity": "legendary",
+      "folder": "Golem_1"
+    },
+    {
+      "id": 4,
+      "name": "Golem 2",
+      "type": "Golem",
+      "variant": 2,
+      "rarity": "legendary",
+      "folder": "Golem_2"
+    },
+    {
+      "id": 5,
+      "name": "Golem 3",
+      "type": "Golem",
+      "variant": 3,
+      "rarity": "legendary",
+      "folder": "Golem_3"
+    },
+    {
+      "id": 6,
+      "name": "Necromancer 1",
+      "type": "Necromancer of the Shadow",
+      "variant": 1,
+      "rarity": "common",
+      "folder": "Necromancer_of_the_Shadow_1"
+    },
+    {
+      "id": 7,
+      "name": "Necromancer 2",
+      "type": "Necromancer of the Shadow",
+      "variant": 2,
+      "rarity": "common",
+      "folder": "Necromancer_of_the_Shadow_2"
+    },
+    {
+      "id": 8,
+      "name": "Necromancer 3",
+      "type": "Necromancer of the Shadow",
+      "variant": 3,
+      "rarity": "common",
+      "folder": "Necromancer_of_the_Shadow_3"
+    },
+    {
+      "id": 9,
+      "name": "Skeleton Crusader 1",
+      "type": "Skeleton Crusader",
+      "variant": 1,
+      "rarity": "common",
+      "folder": "Skeleton_Crusader_1"
+    },
+    {
+      "id": 10,
+      "name": "Skeleton Crusader 2",
+      "type": "Skeleton Crusader",
+      "variant": 2,
+      "rarity": "common",
+      "folder": "Skeleton_Crusader_2"
+    },
+    {
+      "id": 11,
+      "name": "Skeleton Crusader 3",
+      "type": "Skeleton Crusader",
+      "variant": 3,
+      "rarity": "common",
+      "folder": "Skeleton_Crusader_3"
+    },
+    {
+      "id": 12,
+      "name": "Skeleton Warrior 1",
+      "type": "Skeleton Warrior",
+      "variant": 1,
+      "rarity": "common",
+      "folder": "Skeleton_Warrior_1"
+    },
+    {
+      "id": 13,
+      "name": "Skeleton Warrior 2",
+      "type": "Skeleton Warrior",
+      "variant": 2,
+      "rarity": "common",
+      "folder": "Skeleton_Warrior_2"
+    },
+    {
+      "id": 14,
+      "name": "Skeleton Warrior 3",
+      "type": "Skeleton Warrior",
+      "variant": 3,
+      "rarity": "common",
+      "folder": "Skeleton_Warrior_3"
+    }
+  ]
+}

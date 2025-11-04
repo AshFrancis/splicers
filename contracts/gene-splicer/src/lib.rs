@@ -10,9 +10,9 @@ use soroban_sdk::{
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum GeneRarity {
-    Normal,    // 60% chance (IDs 0-5)
-    Rare,      // 30% chance (IDs 6-8)
-    Legendary, // 10% chance (ID 9)
+    Normal,    // 60% chance - Necromancer, Skeleton Crusader, Skeleton Warrior (IDs 6-14)
+    Rare,      // 30% chance - Dark Oracle (IDs 0-2)
+    Legendary, // 10% chance - Golem (IDs 3-5)
 }
 
 /// Individual gene with ID and rarity
@@ -401,15 +401,23 @@ impl GeneSplicer {
         let random_value = (byte1 << 24) | (byte2 << 16) | (byte3 << 8) | byte4;
 
         // Map to 0-14 gene ID with weighted distribution
-        // 0-8: Normal (60%), 9-12: Rare (26.7%), 13-14: Legendary (13.3%)
-        let gene_id = (random_value % 15) as u32;
+        // Legendary (10%): Golem (IDs 3-5)
+        // Rare (30%): Dark Oracle (IDs 0-2)
+        // Common (60%): Necromancer, Skeleton Crusader, Skeleton Warrior (IDs 6-14)
 
-        let rarity = if gene_id <= 8 {
-            GeneRarity::Normal
-        } else if gene_id <= 12 {
-            GeneRarity::Rare
+        let roll = (random_value % 10) as u32; // 0-9 for distribution
+        let (gene_id, rarity) = if roll == 0 {
+            // 10% chance - Legendary (Golem: IDs 3-5)
+            let golem_variant = (random_value >> 8) % 3; // Use different bits for variant selection
+            (3 + golem_variant as u32, GeneRarity::Legendary)
+        } else if roll <= 3 {
+            // 30% chance - Rare (Dark Oracle: IDs 0-2)
+            let oracle_variant = (random_value >> 8) % 3;
+            (oracle_variant as u32, GeneRarity::Rare)
         } else {
-            GeneRarity::Legendary
+            // 60% chance - Common (IDs 6-14, 9 variants)
+            let common_variant = (random_value >> 8) % 9;
+            (6 + common_variant as u32, GeneRarity::Normal)
         };
 
         Gene {

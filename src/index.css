@@ -1,13 +1,105 @@
 /* Import font for Stellar Design System */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Inconsolata:wght@500&display=swap");
 
-/* Pulsing animation for sequencing text */
-@keyframes pulse {
-  0%,
+/* Custom app variables only */
+:root {
+  --creature-box-bg: #232323;
+  --gene-card-bg: #333333;
+  --cartridge-bg: #2a2a2a;
+  --power-bar-bg: #3a3a3a;
+  --success-bg: #6e56cf;
+  --success-text: #4ade80;
+  --border-card: #232323;
+}
+
+/* Let SDS handle backgrounds - minimal overrides */
+
+/* Pixel art styling overrides only */
+
+/* Pixel art style - remove all rounded corners */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+}
+
+/* Pixel art button styles */
+button,
+[class*="Button"] {
+  border-radius: 0 !important;
+  font-family: "Inconsolata", monospace !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3) !important;
+  transition: none !important;
+}
+
+button:hover,
+[class*="Button"]:hover {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3) !important;
+  opacity: 1 !important;
+}
+
+button:active,
+[class*="Button"]:active {
+  transform: translate(4px, 4px) !important;
+  box-shadow: none !important;
+}
+
+/* Pixel art card styles */
+[class*="Card"],
+[class*="card"] {
+  border-radius: 0 !important;
+  border: 2px solid var(--sds-clr-border-primary) !important;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Pixel art input styles */
+input,
+textarea,
+select,
+[class*="Input"],
+[class*="Select"] {
+  border-radius: 0 !important;
+  border: 2px solid var(--sds-clr-border-primary) !important;
+  font-family: "Inconsolata", monospace !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid var(--text-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* Header gap override */
+.Layout__header--right {
+  gap: 1.5rem !important;
+}
+
+/* Wave animation for sequencing text */
+@keyframes sequencing-wave {
+  0% {
+    background-position: -200% center;
+  }
   100% {
-    opacity: 1;
+    background-position: 200% center;
   }
-  50% {
-    opacity: 0.3;
-  }
+}
+
+.sequencing-text {
+  background: linear-gradient(
+    90deg,
+    #666 0%,
+    #666 30%,
+    #fff 50%,
+    #666 70%,
+    #666 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: sequencing-wave 2s linear infinite;
 }
