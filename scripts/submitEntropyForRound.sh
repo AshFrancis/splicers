@@ -26,7 +26,7 @@ echo ""
 # Step 2: Submit to contract
 echo "📤 Submitting entropy to contract..."
 
-CONTRACT_ID="CCUXEQHSH447LROB3Z27POXMIU3WWNAAAMDD5U25ZBJ3W62IRLKDWU3M"
+CONTRACT_ID="CCAAQGF7HGFYZZHMJ5TSTPUPJWTRHI34LIUZ77OMJMCGBOHVUXZVI4MP"
 SUBMITTER=$(stellar keys address me)
 
 stellar contract invoke \

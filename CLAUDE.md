@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Important: Git Commit Policy
 
 **DO NOT add yourself to git commits.** When creating commits, use simple commit messages without any co-authorship lines or AI attribution. All credit goes to the repository owner. Do not include:
+
 - `Co-Authored-By: Claude <noreply@anthropic.com>`
 - Any mention of AI assistance
 - Attribution to Claude or Anthropic
@@ -14,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a **Gene Splicing NFT Game** built on Stellar's Soroban smart contract platform, using the Scaffold Stellar framework. The game allows players to splice gene segments to create unique creatures as NFTs. See `/docs/specs/gene-splicing-v1.md` for the full game specification.
 
 **Tech Stack:**
+
 - **Smart Contracts**: Rust with Soroban SDK (compiled to WASM)
 - **Frontend**: Vite + React + TypeScript
 - **Backend Services**: Node.js (drand relay, NFT generation via Pinata, finalization)
@@ -34,6 +36,12 @@ npm run dev
 # This runs concurrently:
 #   - stellar scaffold watch --build-clients (auto-compiles contracts, generates TS clients)
 #   - vite (frontend dev server with HMR on http://localhost:5173)
+
+# IMPORTANT: Automatic rebuild doesn't work in most cases
+# When making contract changes, you usually need to:
+# 1. Kill the dev server (Ctrl+C)
+# 2. Remove target directory: rm -rf target
+# 3. Restart dev server: npm run dev
 
 # Build production frontend
 npm run build
@@ -237,30 +245,80 @@ fn verify_drand_signature(env: &Env, round: u64, signature: &Bytes) {
 5. **On-chain verification**: All cryptographic operations happen on-chain (immutable)
 
 **Why relayer can't cheat**: The relayer only provides uncompressed byte arrays. The contract:
+
 - Re-verifies all cryptographic properties
 - Performs H2C itself (relayer can't influence this)
 - Checks pairing equation (can't be faked without private key)
 - Validates subgroup membership (prevents invalid point attacks)
 
+**Byte Order Note:**
+Soroban uses **c1-first** byte order for Fp2 field elements per CAP-0059: `x_c1 || x_c0 || y_c1 || y_c0`
+
+This is the SAME as IETF standard format:
+
+- IETF compressed: `x_c1 || x_c0` (96 bytes for G2)
+- Soroban uncompressed: `x_c1 || x_c0 || y_c1 || y_c0` (192 bytes for G2, CAP-0059)
+- Solidity (EVM): `x_c1 || x_c0 || y_c1 || y_c0` (also follows IETF/CAP-0059)
+
+See `/docs/reference-implementations/QuicknetRegistry.sol` for a working Solidity reference implementation.
+
 **Testing:**
+
 ```bash
 # Test full verification flow with live drand data
 bash scripts/testBLS12381.sh
+
+# Verify standalone with noble-curves (matches Soroban logic)
+npx tsx scripts/verifyDrandSignatureLocally.ts
 ```
 
 **References:**
+
 - **CAP-0059**: Stellar protocol specification for BLS12-381 host functions
 - **Drand Quicknet**: Chain hash `52db9ba...` with 3-second rounds
 - **BLS DST**: `BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_` (RFC 9380)
+- **Reference Implementations**: `/docs/reference-implementations/` (Solidity, verification scripts)
+
+**CRITICAL: Soroban G2 Byte Order**
+
+Soroban uses IETF standard byte order per CAP-0059 for G2 points (Fp² field elements):
+
+- **Soroban format (CAP-0059)**: `x_c1 || x_c0 || y_c1 || y_c0` (each component 48 bytes, big-endian)
+- **IETF standard**: `x_c1 || x_c0 || y_c1 || y_c0` (used by @noble/curves and most libraries)
+
+This affects:
+
+1. **G2 point decompression** in `src/services/entropyRelayer.ts:decompressG2Point()`
+   - Must swap component order after decompressing with @noble/curves
+   - Input: compressed 96 bytes → Output: x_c0 || x_c1 || y_c0 || y_c1 (192 bytes)
+2. **Drand public key** in `environments.toml` constructor_args
+   - Must be reordered from drand quicknet's compressed format
+   - Use `scripts/decompressDrandPubkey.ts` to get correct format
+3. **G2 generator** in contract (`lib.rs:519-546`)
+   - Hardcoded in Soroban byte order
+4. **Contract initialization** round-trip test (`lib.rs:507-511`)
+   - Validates: `G2Affine::from_bytes() → to_bytes()` returns identical bytes
+
+**Verification:**
+
+```bash
+# Test decompression outputs correct byte order
+npx tsx scripts/testDecompression.ts
+# Should show: Match: ✅
+```
+
+This was discovered through systematic testing: IETF-ordered bytes caused "UnreachableCodeReached" errors during pairing verification. The round-trip test proved Soroban expects c0-first ordering.
 
 ### Environment Configuration (`environments.toml`)
 
 Multi-environment setup with three tiers:
+
 - **development**: Local network (Docker), auto-deploys contracts with `client = true`
 - **staging**: Stellar testnet
 - **production**: Stellar mainnet
 
 Each environment configures:
+
 ```toml
 [environment.network]
 rpc-url = "..."
@@ -280,6 +338,7 @@ after_deploy = "reset\nother_command"  # Commands to run after deployment
 **Important**: Contract name in `environments.toml` must match underscored `name` in contract's `Cargo.toml`.
 
 **Frontend environment variables** (`.env`):
+
 - `STELLAR_SCAFFOLD_ENV`: Which environment to use from `environments.toml`
 - `PUBLIC_*` prefix: Required for React code access
 - Network config: `PUBLIC_STELLAR_NETWORK`, `PUBLIC_STELLAR_NETWORK_PASSPHRASE`, `PUBLIC_STELLAR_RPC_URL`, `PUBLIC_STELLAR_HORIZON_URL`
@@ -287,6 +346,7 @@ after_deploy = "reset\nother_command"  # Commands to run after deployment
 ### Contracts Structure
 
 Rust workspace at `contracts/` with game contracts:
+
 - **gene-splicer**: Main game contract with BLS12-381 entropy verification
   - `splice_genome()`: Mint Genome Cartridge NFT with PRNG skin
   - `submit_entropy()`: Submit drand entropy with full CAP-0059 verification
@@ -298,12 +358,14 @@ Rust workspace at `contracts/` with game contracts:
     - Pairing equation verification: `e(sig, G2_gen) == e(H(msg), pubkey)`
 
 **OpenZeppelin Patterns Used:**
+
 - `#[default_impl]` macro: Reduces boilerplate for trait implementations
 - `#[only_role(account, "role")]` macro: Access control (from `stellar-macros`)
 - Associated types for mutually exclusive extensions (e.g., `ContractType = AllowList`)
 - Dual-layer API: high-level (with checks) and low-level (manual verification) functions
 
 **Workspace Configuration** (`Cargo.toml`):
+
 ```toml
 [workspace.dependencies.stellar-tokens]
 git = "https://github.com/OpenZeppelin/stellar-contracts"
@@ -311,6 +373,7 @@ tag = "v0.5.1"
 ```
 
 **Build Profiles:**
+
 - `release`: Optimized WASM (opt-level "z", LTO, strip symbols)
 - `release-with-logs`: Same as release but keeps debug assertions
 
@@ -340,6 +403,7 @@ src/
 ```
 
 **Key Services:**
+
 - **entropyRelayer.ts**: NON-SECURITY-CRITICAL BLS12-381 point decompression
   - `decompressG1Point()`: 48 bytes compressed → 96 bytes uncompressed (x || y)
   - `decompressG2Point()`: 96 bytes compressed → 192 bytes uncompressed (x_c0 || x_c1 || y_c0 || y_c1)
@@ -348,6 +412,7 @@ src/
   - `getUncompressedPublicKey()`: Get 192-byte uncompressed drand public key
 
 **Key Patterns:**
+
 - **Contract Clients**: Auto-generated in `packages/` by `stellar scaffold watch`, imported for use
 - **Wallet Integration**: Supports Freighter, xBull, Albedo via Stellar Wallet Kit
 - **State Management**: React Query + Context API
@@ -356,6 +421,7 @@ src/
 ### Contract Client Generation Flow
 
 When `client = true` in `environments.toml`:
+
 1. Rust contract source compiled to WASM
 2. Contract deployed to network
 3. Constructor called with `constructor_args`
@@ -364,6 +430,7 @@ When `client = true` in `environments.toml`:
 6. Client auto-importable in frontend (NPM workspace)
 
 **Requirements:**
+
 - Contract in local `contracts/` workspace
 - Name match: `environments.toml` key = underscored `Cargo.toml` name
 - Only works in `development` or `testing` environments
@@ -373,6 +440,7 @@ When `client = true` in `environments.toml`:
 **DO NOT manually deploy contracts** when working in development. Always rely on `stellar scaffold watch` to handle deployment and TypeScript bindings generation.
 
 **Why this matters:**
+
 - Manually deploying contracts creates a mismatch between the deployed contract schema and the auto-generated TypeScript bindings
 - The scaffold watches for contract changes and automatically:
   1. Compiles Rust contracts to WASM
@@ -383,6 +451,7 @@ When `client = true` in `environments.toml`:
   6. Updates the `networks` object with the new contract ID
 
 **Common mistake:**
+
 ```bash
 # ❌ DON'T DO THIS in development
 stellar contract deploy --wasm target/wasm32-unknown-unknown/release/contract.wasm
@@ -390,6 +459,7 @@ stellar contract invoke --id <manual-id> -- initialize --args...
 ```
 
 **Correct approach:**
+
 ```bash
 # ✅ DO THIS - let scaffold handle everything
 npm run dev
@@ -397,14 +467,15 @@ npm run dev
 ```
 
 **How to use the auto-generated client:**
+
 ```typescript
 // In src/contracts/contract_name.ts - helper file that uses scaffold-generated package
-import { Client, networks } from 'contract_name';  // From packages/contract_name/
-import { rpcUrl } from './util';
+import { Client, networks } from "contract_name"; // From packages/contract_name/
+import { rpcUrl } from "./util";
 
 // Use the auto-generated network configuration
 export default new Client({
-  ...networks.standalone,  // Includes contractId from scaffold deployment
+  ...networks.standalone, // Includes contractId from scaffold deployment
   rpcUrl,
   allowHttp: true,
   publicKey: undefined,
@@ -421,6 +492,7 @@ const result = await tx.simulate();
 ```
 
 **If you need to redeploy clean:**
+
 ```bash
 # Remove old deployment state
 rm -rf .stellar packages/contract_name node_modules/.vite
@@ -434,6 +506,7 @@ npm run dev
 The game requires three backend services running as a single Node.js application on fly.io.
 
 **Project Structure:**
+
 ```
 backend/
 ├── src/
@@ -482,6 +555,7 @@ The entropy relay uses a security-critical architecture split:
 **Why this split matters**: The relayer cannot forge valid signatures because all cryptographic verification happens on-chain where it cannot be tampered with. The relayer only performs parsing operations that affect performance, not security.
 
 **Key Functions:**
+
 - Poll drand HTTP API for new randomness rounds (`https://api.drand.sh/<chain-hash>/public/latest`)
 - Decompress BLS12-381 signatures and public keys using `@noble/curves/bls12-381.js`
 - Submit `submit_entropy(round, randomness, signature)` with uncompressed 96-byte signature
@@ -489,9 +563,10 @@ The entropy relay uses a security-critical architecture split:
 - Handle network retries with exponential backoff
 
 **Implementation:**
+
 ```typescript
 // src/services/entropyRelayer.ts
-import { bls12_381 } from '@noble/curves/bls12-381.js';
+import { bls12_381 } from "@noble/curves/bls12-381.js";
 
 // Fetch latest drand entropy
 const drandRound = await fetchLatestDrandEntropy();
@@ -502,7 +577,7 @@ const point = bls12_381.G1.Point.fromHex(signatureHex);
 const affine = point.toAffine();
 const uncompressed = concatBytes(
   fieldElementToBytes(affine.x),
-  fieldElementToBytes(affine.y)
+  fieldElementToBytes(affine.y),
 );
 
 // Submit to contract for on-chain verification
@@ -510,11 +585,12 @@ await contract.submit_entropy({
   submitter: relayerAddress,
   round: drandRound.round,
   randomness: randomnessBytes,
-  signature: uncompressed  // 96 bytes
+  signature: uncompressed, // 96 bytes
 });
 ```
 
 **Testing BLS12-381 Verification:**
+
 ```bash
 # Run end-to-end test
 bash scripts/testBLS12381.sh
@@ -528,6 +604,7 @@ bash scripts/testBLS12381.sh
 **Purpose**: Generate creature images from gene combinations and pin to IPFS via Pinata.
 
 **Key Functions:**
+
 - Listen for contract events or poll for finalized creatures
 - Fetch gene data from contract (head_gene, torso_gene, leg_gene)
 - Generate composite creature image using Canvas or Sharp
@@ -536,6 +613,7 @@ bash scripts/testBLS12381.sh
 - Optionally update contract with metadata URI
 
 **Pinata Integration:**
+
 ```typescript
 // Using Pinata SDK
 import { PinataSDK } from "pinata";
@@ -555,13 +633,14 @@ const metadata = {
   attributes: [
     { trait_type: "Head Gene", value: genes.head },
     { trait_type: "Torso Gene", value: genes.torso },
-    { trait_type: "Leg Gene", value: genes.legs }
-  ]
+    { trait_type: "Leg Gene", value: genes.legs },
+  ],
 };
 const metadataUpload = await pinata.upload.json(metadata);
 ```
 
 **Asset Management:**
+
 - Store gene segment images in `backend/assets/genes/`
 - Organize by type: `heads/`, `torsos/`, `legs/`
 - Use consistent naming: `head_1.png`, `head_2.png`, etc.
@@ -572,6 +651,7 @@ const metadataUpload = await pinata.upload.json(metadata);
 **Purpose**: Automatically call `finalize_splice(id)` for cartridges ready but not finalized by users.
 
 **Key Functions:**
+
 - Poll contract for pending Genome Cartridge NFTs
 - Check if entropy available for cartridge's splice_round
 - Wait grace period (e.g., 1 hour) before auto-finalization
@@ -579,6 +659,7 @@ const metadataUpload = await pinata.upload.json(metadata);
 - Track finalization status to avoid duplicate calls
 
 **Implementation Notes:**
+
 - Grace period allows users to finalize themselves first
 - Service pays transaction fees but function is permissionless
 - Can batch multiple finalizations if contract supports it
@@ -601,7 +682,7 @@ const metadataUpload = await pinata.upload.json(metadata);
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^14.2.0",
-    "@noble/curves": "^1.3.0",    // BLS12-381 decompression for drand
+    "@noble/curves": "^1.3.0", // BLS12-381 decompression for drand
     "pinata": "^1.0.0",
     "canvas": "^2.11.2",
     "dotenv": "^16.4.5",
@@ -617,6 +698,7 @@ const metadataUpload = await pinata.upload.json(metadata);
 ```
 
 **Key Dependencies:**
+
 - `@noble/curves`: Used by relayer to decompress BLS12-381 G1/G2 points from drand
 - `@stellar/stellar-sdk`: Stellar blockchain interaction
 - `pinata`: IPFS pinning service
@@ -719,28 +801,33 @@ CMD ["node", "dist/index.js"]
 #### Deployment Strategy
 
 **fly.io Configuration:**
+
 - 1 always-on machine (no auto-stop)
 - Shared CPU (sufficient for background tasks)
 - 512MB RAM (increase if needed for image processing)
 - Secrets stored in fly.io (use `fly secrets set`)
 
 **Monitoring & Reliability:**
+
 - Health check endpoint at `/health` returning service status
 - Winston logging to stdout (captured by fly.io logs)
 - Sentry or similar for error tracking (optional)
 - Set up fly.io alerts for machine crashes
 
 **Cost Management:**
+
 - fly.io free tier includes 3 shared-cpu VMs with 256MB RAM
 - Upgrade to 512MB RAM if image generation needs it
 - Monitor Pinata usage (free tier: 1GB storage, 100 API calls/month)
 
 **Scaling Considerations:**
+
 - For high volume, separate services into multiple fly.io apps
 - Use fly.io Postgres for shared state between services
 - Add Redis for job queues if needed (Bull, BullMQ)
 
 **Deployment Checklist:**
+
 1. Create fly.io app: `fly apps create gene-splicer-backend`
 2. Set all secrets: `fly secrets set KEY=value`
 3. Deploy: `fly deploy`
@@ -753,6 +840,7 @@ CMD ["node", "dist/index.js"]
 When writing Soroban contracts, follow these principles:
 
 1. **Trait-Based Design**: Use associated types for mutually exclusive extensions
+
    ```rust
    impl NonFungibleToken for MyContract {
        type ContractType = Enumerable;  // Forces compile-time exclusivity
@@ -764,6 +852,7 @@ When writing Soroban contracts, follow these principles:
    - Low-level: Manual control for custom workflows
 
 3. **Modular Extensions**: Mix and match traits (Burnable, Pausable, Upgradeable, etc.)
+
    ```rust
    #[default_impl]
    #[contractimpl]
@@ -779,6 +868,7 @@ When writing Soroban contracts, follow these principles:
    - `#[when_not_paused]`: Declarative pausable checks
 
 5. **Storage Key Design**: Use enums for structured storage
+
    ```rust
    #[contracttype]
    pub enum StorageKey {
@@ -820,6 +910,7 @@ npx tsx scripts/fetchAndDecompressDrand.ts
 ```
 
 **Test Scripts:**
+
 - `scripts/testBLS12381.sh`: Full verification flow test
   - Fetches live drand quicknet entropy
   - Decompresses BLS12-381 signature (G1: 48→96 bytes)
@@ -833,6 +924,7 @@ npx tsx scripts/fetchAndDecompressDrand.ts
 ### Contract Debugger
 
 Navigate to `/debug` route for interactive contract explorer:
+
 - Auto-generated forms for all deployed contract methods
 - Transaction result inspection
 - Contract state viewer
@@ -862,6 +954,7 @@ The app generates Stellar Lab URLs for transaction inspection. Links include net
 ### Logging
 
 Use `log` events in contracts (visible in `release-with-logs` profile):
+
 ```rust
 env.logs().log("message", value);
 ```

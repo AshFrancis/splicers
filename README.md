@@ -55,9 +55,19 @@ Have a look at `environments.toml` for more fined-grained control.
 npm run dev
 ```
 
-Open the server URL in your web browser. 
+Open the server URL in your web browser.
 
-4. For testnet/mainnet deployment:
+4. Deploy Native XLM Contract (Local Development):
+
+When starting fresh or after resetting the local blockchain, you need to deploy the native XLM Stellar Asset Contract (SAC):
+
+```bash
+stellar contract asset deploy --source me --network local --asset native
+```
+
+This deploys the native XLM token contract at its deterministic address (`CDMLFMKMMD7MWZP3FKUBZPVHTUEDLSX4BYGYKH4GCESXYHS3IHQ4EIG4`), which is required by the gene-splicer contract for fee payments.
+
+5. For testnet/mainnet deployment:
 
 When you are ready for testnet, you need to deploy your contract using
 `stellar registry`. Some commands to get you started.
@@ -109,3 +119,41 @@ my-project/                      # Your initialized project
 ```
 
 This template provides a ready-to-use frontend application with example smart contracts and their TypeScript clients. You can use these as reference while building your own contracts and UI. The frontend is set up with Vite, React, and includes basic components for interacting with the contracts.
+
+## ⚠️ Important: Contract Deployment & ID Sync
+
+When you deploy or redeploy contracts, you **must** keep the contract IDs in sync across all config files, otherwise your frontend will fail silently!
+
+### After deploying a contract:
+
+1. **Check the new contract ID** - After deployment, the contract ID is stored in:
+
+   ```bash
+   cat .config/stellar/contract-ids/gene_splicer.json
+   ```
+
+2. **Update your .env file** - Copy the contract ID to your `.env`:
+
+   ```bash
+   PUBLIC_GENE_SPLICER_CONTRACT_ID="CCL5G4HRTTBFASEBGJVF4OTLF2K3PWWUNLL3IWYZXI2CZAO4ZFJRHSPX"
+   ```
+
+3. **Restart dev server** - The Vite dev server should auto-reload, but if not:
+   ```bash
+   # Stop npm run dev (Ctrl+C) and restart
+   npm run dev
+   ```
+
+### How to verify everything is synced:
+
+```bash
+# Contract ID in Stellar config
+cat .config/stellar/contract-ids/gene_splicer.json
+
+# Contract ID in .env
+grep PUBLIC_GENE_SPLICER_CONTRACT_ID .env
+
+# These should match!
+```
+
+**Why this matters:** The frontend reads contract IDs from environment variables. If the `.env` file has an old contract ID but the blockchain has a new one, transactions will succeed in simulation but fail silently on the network, and you won't see any data!

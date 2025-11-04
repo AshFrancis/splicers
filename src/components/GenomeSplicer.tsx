@@ -7,6 +7,10 @@ import { createGeneSplicerClient } from "../contracts/util";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { GenomeCartridge, Creature } from "gene_splicer";
 import { CreatureRenderer } from "./CreatureRenderer";
+import {
+  fetchDrandEntropy,
+  parseAndDecompressEntropy,
+} from "../services/entropyRelayer";
 
 // Constants
 const POLL_INTERVAL_MS = 5000;
@@ -15,41 +19,51 @@ const POLL_INTERVAL_MS = 5000;
 type CartridgeData = GenomeCartridge;
 type CreatureData = Creature;
 
-// Component for a single cartridge row with entropy checking
+// Component for a single cartridge row with drand round checking
 const CartridgeRow: React.FC<{
   cartridge: CartridgeData;
   onFinalized: () => void;
 }> = React.memo(({ cartridge, onFinalized }) => {
   const wallet = useWallet();
 
-  // Check if entropy is available for this cartridge's splice round
-  const { data: entropyAvailable } = useQuery<boolean>({
-    queryKey: ["entropy-available", String(cartridge.splice_round)],
-    queryFn: async (): Promise<boolean> => {
-      try {
-        const tx = await GeneSplicer.get_entropy({
-          round: cartridge.splice_round,
-        });
-        const result = await tx.simulate();
-        return result.result !== null && result.result !== undefined;
-      } catch {
-        return false;
-      }
+  // Check if the drand round has passed (round is available)
+  // Drand quicknet: genesis = 1692803367, period = 3s
+  const { data: roundAvailable } = useQuery<boolean>({
+    queryKey: ["drand-round-available", String(cartridge.splice_round)],
+    queryFn: (): boolean => {
+      const now = Math.floor(Date.now() / 1000);
+      const drandGenesis = 1692803367;
+      const drandPeriod = 3;
+      const currentRound = Math.floor((now - drandGenesis) / drandPeriod) + 1;
+      return currentRound >= Number(cartridge.splice_round);
     },
     enabled: !cartridge.finalized,
     refetchInterval: POLL_INTERVAL_MS,
   });
 
-  // Finalize mutation
+  // Finalize mutation - fetches entropy from drand and submits inline
   const finalizeMutation = useMutation<number, Error>({
     mutationFn: async (): Promise<number> => {
       if (!wallet?.address) throw new Error("Wallet not connected");
       if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
 
+      // Fetch entropy from drand for this cartridge's round
+      const drandRound = await fetchDrandEntropy(
+        Number(cartridge.splice_round),
+      );
+      const uncompressed = parseAndDecompressEntropy(drandRound);
+
+      // Convert Uint8Array to Buffer for contract (no hex conversion needed)
+      const randomnessBuffer = Buffer.from(uncompressed.randomness);
+      const signatureBuffer = Buffer.from(uncompressed.signature_uncompressed);
+
       // Create client with user's public key for write operations
       const client = await createGeneSplicerClient(wallet.address);
       const tx = await client.finalize_splice({
         cartridge_id: cartridge.id,
+        round: BigInt(uncompressed.round),
+        randomness: randomnessBuffer,
+        signature: signatureBuffer,
       });
 
       const signed = await tx.signAndSend({
@@ -87,14 +101,16 @@ const CartridgeRow: React.FC<{
         <Text as="p" size="sm" style={{ color: "green", fontWeight: "bold" }}>
           ✓ Finalized
         </Text>
-      ) : entropyAvailable ? (
+      ) : roundAvailable ? (
         <Button
           size="sm"
           variant="primary"
           onClick={() => finalizeMutation.mutate()}
           disabled={finalizeMutation.isPending}
         >
-          {finalizeMutation.isPending ? "Finalizing..." : "Finalize"}
+          {finalizeMutation.isPending
+            ? "Printing Creature..."
+            : "Sequencing Complete... Print Creature"}
         </Button>
       ) : (
         <Button size="sm" variant="secondary" disabled>
