@@ -147,7 +147,7 @@ const RARITY_EFFECTS = {
  * - Legs gene controls: Left Leg.png, Right Leg.png
  *
  * Gene IDs (0-14) map to 15 creature variants.
- * Layer order (bottom to top): Left Leg, Right Leg, Body, Left Arm, Right Arm, Left Hand, Right Hand, Head, Face
+ * Layer order (bottom to top): Right Hand, Right Arm, Right Leg, Left Leg, Torso, Left Hand, Left Arm, Head, Face
  */
 export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
   creature,
@@ -256,16 +256,25 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
         filter: `drop-shadow(${containerGlow})`,
       }}
     >
-      {/* Layer 1: Left Leg (bottom) */}
+      {/* Layer 1: Right Hand (bottom) */}
       {renderBodyPart(
-        leftLegAsset,
-        "Left Leg",
-        "bounce-leg-left",
-        "0s",
-        legsEffects,
+        rightHandAsset,
+        "Right Hand",
+        "bounce-hand-right",
+        "0.25s",
+        torsoEffects,
       )}
 
-      {/* Layer 2: Right Leg */}
+      {/* Layer 2: Right Arm */}
+      {renderBodyPart(
+        rightArmAsset,
+        "Right Arm",
+        "bounce-arm-right",
+        "0.2s",
+        torsoEffects,
+      )}
+
+      {/* Layer 3: Right Leg */}
       {renderBodyPart(
         rightLegAsset,
         "Right Leg",
@@ -274,26 +283,17 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
         legsEffects,
       )}
 
-      {/* Layer 3: Body */}
-      {renderBodyPart(bodyAsset, "Body", "bounce-body", "0.15s", torsoEffects)}
-
-      {/* Layer 4: Left Arm */}
+      {/* Layer 4: Left Leg */}
       {renderBodyPart(
-        leftArmAsset,
-        "Left Arm",
-        "bounce-arm-left",
-        "0.05s",
-        torsoEffects,
+        leftLegAsset,
+        "Left Leg",
+        "bounce-leg-left",
+        "0s",
+        legsEffects,
       )}
 
-      {/* Layer 5: Right Arm */}
-      {renderBodyPart(
-        rightArmAsset,
-        "Right Arm",
-        "bounce-arm-right",
-        "0.2s",
-        torsoEffects,
-      )}
+      {/* Layer 5: Torso */}
+      {renderBodyPart(bodyAsset, "Torso", "bounce-body", "0.15s", torsoEffects)}
 
       {/* Layer 6: Left Hand */}
       {renderBodyPart(
@@ -304,12 +304,12 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
         torsoEffects,
       )}
 
-      {/* Layer 7: Right Hand */}
+      {/* Layer 7: Left Arm */}
       {renderBodyPart(
-        rightHandAsset,
-        "Right Hand",
-        "bounce-hand-right",
-        "0.25s",
+        leftArmAsset,
+        "Left Arm",
+        "bounce-arm-left",
+        "0.05s",
         torsoEffects,
       )}
 
