@@ -118,25 +118,6 @@ const injectAnimations = () => {
   document.head.appendChild(style);
 };
 
-// Rarity-based visual effects (CSS filters and overlays)
-const RARITY_EFFECTS = {
-  Normal: {
-    filter: "none",
-    overlay: "transparent",
-    glow: "0 0 0px transparent",
-  },
-  Rare: {
-    filter: "hue-rotate(270deg) saturate(1.3)",
-    overlay: "rgba(159, 122, 234, 0.15)",
-    glow: "0 0 15px rgba(159, 122, 234, 0.6)",
-  },
-  Legendary: {
-    filter: "hue-rotate(30deg) saturate(1.5) brightness(1.1)",
-    overlay: "rgba(245, 158, 11, 0.2)",
-    glow: "0 0 20px rgba(245, 158, 11, 0.8)",
-  },
-};
-
 /**
  * CreatureRenderer - Renders creatures using layered PNG assets in 3 rows
  *
@@ -177,47 +158,21 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
   const leftLegAsset = `${basePath}/${legsFolder}/Parts/Left Leg.png`;
   const rightLegAsset = `${basePath}/${legsFolder}/Parts/Right Leg.png`;
 
-  // Get rarity effects for each body part group
-  const headEffects =
-    RARITY_EFFECTS[creature.head_gene.rarity.tag] || RARITY_EFFECTS.Normal;
-  const torsoEffects =
-    RARITY_EFFECTS[creature.torso_gene.rarity.tag] || RARITY_EFFECTS.Normal;
-  const legsEffects =
-    RARITY_EFFECTS[creature.legs_gene.rarity.tag] || RARITY_EFFECTS.Normal;
-
-  // Calculate overall glow effect (use the highest rarity)
-  const rarities = [
-    creature.head_gene.rarity.tag,
-    creature.torso_gene.rarity.tag,
-    creature.legs_gene.rarity.tag,
-  ];
-  const hasLegendary = rarities.includes("Legendary");
-  const hasRare = rarities.includes("Rare");
-
-  const containerGlow = hasLegendary
-    ? RARITY_EFFECTS.Legendary.glow
-    : hasRare
-      ? RARITY_EFFECTS.Rare.glow
-      : RARITY_EFFECTS.Normal.glow;
-
   // Render helper for body part layers at actual size
   const renderBodyPart = (
     asset: string,
     alt: string,
     animation: string,
     delay: string,
-    effects: typeof RARITY_EFFECTS.Normal,
   ) => (
     <div
       style={{
         position: "absolute",
-        top: 0,
-        left: 0,
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
         animation: `${animation} 2.8s ease-in-out infinite`,
         animationDelay: delay,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
       }}
     >
       <img
@@ -225,37 +180,25 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
         alt={alt}
         style={{
           display: "block",
-          filter: effects.filter,
         }}
         onError={(e) => {
           e.currentTarget.style.display = "none";
         }}
       />
-      {effects.overlay !== "transparent" && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: effects.overlay,
-            pointerEvents: "none",
-            mixBlendMode: "multiply",
-          }}
-        />
-      )}
     </div>
   );
 
   // Helper to render a row with layered parts
-  const renderRow = (children: React.ReactNode, marginTop: string = "0px") => (
+  const renderRow = (
+    children: React.ReactNode,
+    marginTop: string = "0px",
+    minHeight: string = "200px",
+  ) => (
     <div
       style={{
         position: "relative",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
+        minHeight,
+        width: "100%",
         marginTop,
       }}
     >
@@ -269,29 +212,16 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        filter: `drop-shadow(${containerGlow})`,
       }}
     >
       {/* Row 1: Head assets */}
       {renderRow(
         <>
           {/* Head layer */}
-          {renderBodyPart(
-            headAsset,
-            "Head",
-            "bounce-head",
-            "0.3s",
-            headEffects,
-          )}
+          {renderBodyPart(headAsset, "Head", "bounce-head", "0.3s")}
 
           {/* Face layer (on top) */}
-          {renderBodyPart(
-            faceAsset,
-            "Face",
-            "bounce-face",
-            "0.3s",
-            headEffects,
-          )}
+          {renderBodyPart(faceAsset, "Face", "bounce-face", "0.3s")}
         </>,
       )}
 
@@ -304,7 +234,6 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
             "Right Hand",
             "bounce-hand-right",
             "0.25s",
-            torsoEffects,
           )}
 
           {/* Right Arm */}
@@ -313,17 +242,10 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
             "Right Arm",
             "bounce-arm-right",
             "0.2s",
-            torsoEffects,
           )}
 
           {/* Torso/Body */}
-          {renderBodyPart(
-            bodyAsset,
-            "Torso",
-            "bounce-body",
-            "0.15s",
-            torsoEffects,
-          )}
+          {renderBodyPart(bodyAsset, "Torso", "bounce-body", "0.15s")}
 
           {/* Left Hand */}
           {renderBodyPart(
@@ -331,17 +253,10 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
             "Left Hand",
             "bounce-hand-left",
             "0.08s",
-            torsoEffects,
           )}
 
           {/* Left Arm (top layer) */}
-          {renderBodyPart(
-            leftArmAsset,
-            "Left Arm",
-            "bounce-arm-left",
-            "0.05s",
-            torsoEffects,
-          )}
+          {renderBodyPart(leftArmAsset, "Left Arm", "bounce-arm-left", "0.05s")}
         </>,
         "-20px", // Negative margin for overlap with head row
       )}
@@ -355,17 +270,10 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
             "Right Leg",
             "bounce-leg-right",
             "0.1s",
-            legsEffects,
           )}
 
           {/* Left Leg (on top) */}
-          {renderBodyPart(
-            leftLegAsset,
-            "Left Leg",
-            "bounce-leg-left",
-            "0s",
-            legsEffects,
-          )}
+          {renderBodyPart(leftLegAsset, "Left Leg", "bounce-leg-left", "0s")}
         </>,
         "-20px", // Negative margin for overlap with torso row
       )}
