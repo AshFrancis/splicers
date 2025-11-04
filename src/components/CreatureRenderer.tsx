@@ -164,29 +164,38 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
     alt: string,
     animation: string,
     delay: string,
-  ) => (
-    <div
-      style={{
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        animation: `${animation} 2.8s ease-in-out infinite`,
-        animationDelay: delay,
-      }}
-    >
-      <img
-        src={asset}
-        alt={alt}
+    offsetX: number = 0,
+    offsetY: number = 0,
+  ) => {
+    const transform =
+      offsetX || offsetY
+        ? `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`
+        : "translate(-50%, -50%)";
+
+    return (
+      <div
         style={{
-          display: "block",
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform,
+          animation: `${animation} 2.8s ease-in-out infinite`,
+          animationDelay: delay,
         }}
-        onError={(e) => {
-          e.currentTarget.style.display = "none";
-        }}
-      />
-    </div>
-  );
+      >
+        <img
+          src={asset}
+          alt={alt}
+          style={{
+            display: "block",
+          }}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      </div>
+    );
+  };
 
   // Helper to render a row with layered parts
   const renderRow = (
@@ -220,8 +229,8 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
           {/* Head layer */}
           {renderBodyPart(headAsset, "Head", "bounce-head", "0.3s")}
 
-          {/* Face layer (on top) */}
-          {renderBodyPart(faceAsset, "Face", "bounce-face", "0.3s")}
+          {/* Face layer (on top) - offset 30px left, 40px top */}
+          {renderBodyPart(faceAsset, "Face", "bounce-face", "0.3s", 30, 40)}
         </>,
       )}
 
