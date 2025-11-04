@@ -3,7 +3,6 @@ import type { Creature } from "gene_splicer";
 
 interface CreatureRendererProps {
   creature: Creature;
-  size?: number;
 }
 
 // Map gene IDs (0-14) to creature folder names
@@ -139,7 +138,7 @@ const RARITY_EFFECTS = {
 };
 
 /**
- * CreatureRenderer - Renders creatures using layered PNG assets
+ * CreatureRenderer - Renders creatures using layered PNG assets in 3 rows
  *
  * Asset structure (creatures2):
  * - Head gene controls: Head.png, Face 01.png
@@ -147,11 +146,14 @@ const RARITY_EFFECTS = {
  * - Legs gene controls: Left Leg.png, Right Leg.png
  *
  * Gene IDs (0-14) map to 15 creature variants.
- * Layer order (bottom to top): Right Hand, Right Arm, Right Leg, Left Leg, Torso, Left Hand, Left Arm, Head, Face
+ * Layout: 3 rows (head, torso, legs) with slight overlap between rows
+ * Layer order within rows (bottom to top):
+ * - Head row: Head, Face
+ * - Torso row: Right Hand, Right Arm, Torso, Left Hand, Left Arm
+ * - Legs row: Right Leg, Left Leg
  */
 export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
   creature,
-  size = 300,
 }) => {
   // Inject animations on mount
   useEffect(() => {
@@ -198,7 +200,7 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
       ? RARITY_EFFECTS.Rare.glow
       : RARITY_EFFECTS.Normal.glow;
 
-  // Render helper for body part layers
+  // Render helper for body part layers at actual size
   const renderBodyPart = (
     asset: string,
     alt: string,
@@ -211,19 +213,18 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
         position: "absolute",
         top: 0,
         left: 0,
-        width: "100%",
-        height: "100%",
         animation: `${animation} 2.8s ease-in-out infinite`,
         animationDelay: delay,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
       }}
     >
       <img
         src={asset}
         alt={alt}
         style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "contain",
+          display: "block",
           filter: effects.filter,
         }}
         onError={(e) => {
@@ -247,89 +248,135 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
     </div>
   );
 
+  // Helper to render a row with layered parts
+  const renderRow = (children: React.ReactNode, marginTop: string = "0px") => (
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        marginTop,
+      }}
+    >
+      {children}
+    </div>
+  );
+
   return (
     <div
       style={{
-        width: `${size}px`,
-        height: `${size}px`,
-        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
         filter: `drop-shadow(${containerGlow})`,
       }}
     >
-      {/* Layer 1: Right Hand (bottom) */}
-      {renderBodyPart(
-        rightHandAsset,
-        "Right Hand",
-        "bounce-hand-right",
-        "0.25s",
-        torsoEffects,
+      {/* Row 1: Head assets */}
+      {renderRow(
+        <>
+          {/* Head layer */}
+          {renderBodyPart(
+            headAsset,
+            "Head",
+            "bounce-head",
+            "0.3s",
+            headEffects,
+          )}
+
+          {/* Face layer (on top) */}
+          {renderBodyPart(
+            faceAsset,
+            "Face",
+            "bounce-face",
+            "0.3s",
+            headEffects,
+          )}
+        </>,
       )}
 
-      {/* Layer 2: Right Arm */}
-      {renderBodyPart(
-        rightArmAsset,
-        "Right Arm",
-        "bounce-arm-right",
-        "0.2s",
-        torsoEffects,
+      {/* Row 2: Torso assets */}
+      {renderRow(
+        <>
+          {/* Right Hand (bottom layer) */}
+          {renderBodyPart(
+            rightHandAsset,
+            "Right Hand",
+            "bounce-hand-right",
+            "0.25s",
+            torsoEffects,
+          )}
+
+          {/* Right Arm */}
+          {renderBodyPart(
+            rightArmAsset,
+            "Right Arm",
+            "bounce-arm-right",
+            "0.2s",
+            torsoEffects,
+          )}
+
+          {/* Torso/Body */}
+          {renderBodyPart(
+            bodyAsset,
+            "Torso",
+            "bounce-body",
+            "0.15s",
+            torsoEffects,
+          )}
+
+          {/* Left Hand */}
+          {renderBodyPart(
+            leftHandAsset,
+            "Left Hand",
+            "bounce-hand-left",
+            "0.08s",
+            torsoEffects,
+          )}
+
+          {/* Left Arm (top layer) */}
+          {renderBodyPart(
+            leftArmAsset,
+            "Left Arm",
+            "bounce-arm-left",
+            "0.05s",
+            torsoEffects,
+          )}
+        </>,
+        "-20px", // Negative margin for overlap with head row
       )}
 
-      {/* Layer 3: Right Leg */}
-      {renderBodyPart(
-        rightLegAsset,
-        "Right Leg",
-        "bounce-leg-right",
-        "0.1s",
-        legsEffects,
+      {/* Row 3: Legs assets */}
+      {renderRow(
+        <>
+          {/* Right Leg */}
+          {renderBodyPart(
+            rightLegAsset,
+            "Right Leg",
+            "bounce-leg-right",
+            "0.1s",
+            legsEffects,
+          )}
+
+          {/* Left Leg (on top) */}
+          {renderBodyPart(
+            leftLegAsset,
+            "Left Leg",
+            "bounce-leg-left",
+            "0s",
+            legsEffects,
+          )}
+        </>,
+        "-20px", // Negative margin for overlap with torso row
       )}
 
-      {/* Layer 4: Left Leg */}
-      {renderBodyPart(
-        leftLegAsset,
-        "Left Leg",
-        "bounce-leg-left",
-        "0s",
-        legsEffects,
-      )}
-
-      {/* Layer 5: Torso */}
-      {renderBodyPart(bodyAsset, "Torso", "bounce-body", "0.15s", torsoEffects)}
-
-      {/* Layer 6: Left Hand */}
-      {renderBodyPart(
-        leftHandAsset,
-        "Left Hand",
-        "bounce-hand-left",
-        "0.08s",
-        torsoEffects,
-      )}
-
-      {/* Layer 7: Left Arm */}
-      {renderBodyPart(
-        leftArmAsset,
-        "Left Arm",
-        "bounce-arm-left",
-        "0.05s",
-        torsoEffects,
-      )}
-
-      {/* Layer 8: Head */}
-      {renderBodyPart(headAsset, "Head", "bounce-head", "0.3s", headEffects)}
-
-      {/* Layer 9: Face (top) */}
-      {renderBodyPart(faceAsset, "Face", "bounce-face", "0.3s", headEffects)}
-
-      {/* Placeholder when no assets are loaded */}
+      {/* Debug info */}
       <div
         style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
           textAlign: "center",
           color: "#999",
           fontSize: "12px",
-          pointerEvents: "none",
+          marginTop: "8px",
         }}
       >
         <div>Creature #{creature.id}</div>
