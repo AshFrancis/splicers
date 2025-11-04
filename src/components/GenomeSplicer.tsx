@@ -8,6 +8,7 @@ import { createGeneSplicerClient } from "../contracts/util";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { GenomeCartridge, Creature } from "gene_splicer";
 import { CreatureRenderer } from "./CreatureRenderer";
+import { BattleArena } from "./BattleArena";
 import {
   fetchDrandEntropy,
   parseAndDecompressEntropy,
@@ -160,6 +161,9 @@ export const GenomeSplicer: React.FC = () => {
   const { updateBalance } = useWalletBalance();
   const [lastMintedId, setLastMintedId] = useState<number | null>(null);
   const [geneTraits, setGeneTraits] = useState<GeneTrait[]>([]);
+  const [battleCreature, setBattleCreature] = useState<CreatureData | null>(
+    null,
+  );
 
   // Load gene traits metadata
   useEffect(() => {
@@ -711,12 +715,39 @@ export const GenomeSplicer: React.FC = () => {
                         </Text>
                       </div>
                     </div>
+
+                    {/* Battle Button */}
+                    <div style={{ marginTop: "1rem" }}>
+                      <Button
+                        variant="primary"
+                        onClick={() => setBattleCreature(creature)}
+                        style={{
+                          width: "100%",
+                          fontSize: "1.2rem",
+                          padding: "0.75rem",
+                          background:
+                            "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                          border: "3px solid #991b1b",
+                          boxShadow: "0 4px 12px rgba(239, 68, 68, 0.4)",
+                        }}
+                      >
+                        ⚔️ BATTLE!
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
         </Card>
+      )}
+
+      {/* Battle Arena Overlay */}
+      {battleCreature && (
+        <BattleArena
+          playerCreature={battleCreature}
+          onExit={() => setBattleCreature(null)}
+        />
       )}
     </div>
   );

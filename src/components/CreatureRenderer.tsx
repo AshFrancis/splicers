@@ -1,8 +1,13 @@
 import React, { useEffect } from "react";
 import type { Creature } from "gene_splicer";
 
+type AttackType = "punch" | "kick" | "headbutt" | null;
+
 interface CreatureRendererProps {
   creature: Creature;
+  isAttacking?: boolean;
+  attackType?: AttackType;
+  isKnockedOut?: boolean;
 }
 
 // Map gene IDs (0-14) to creature folder names
@@ -69,6 +74,34 @@ const injectAnimations = () => {
         transform: rotate(var(--arm-swing-reverse));
       }
     }
+
+    @keyframes punch-right {
+      0% { transform: rotate(0deg); }
+      30% { transform: rotate(-60deg); }
+      60% { transform: rotate(-60deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    @keyframes punch-left {
+      0% { transform: rotate(0deg); }
+      30% { transform: rotate(60deg); }
+      60% { transform: rotate(60deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    @keyframes kick-leg {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      30% { transform: translate(calc(-50% + 98px), calc(-50% + -20px)) rotate(-45deg); }
+      60% { transform: translate(calc(-50% + 98px), calc(-50% + -20px)) rotate(-45deg); }
+      100% { transform: translate(-50%, -50%) rotate(0deg); }
+    }
+
+    @keyframes headbutt-head {
+      0% { transform: translateY(0px) rotate(0deg); }
+      30% { transform: translateY(-15px) rotate(-10deg); }
+      60% { transform: translateY(-15px) rotate(-10deg); }
+      100% { transform: translateY(0px) rotate(0deg); }
+    }
   `;
   document.head.appendChild(style);
 };
@@ -98,6 +131,9 @@ const generateVariation = (seed: number, min: number, max: number): number => {
  */
 export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
   creature,
+  isAttacking = false,
+  attackType = null,
+  isKnockedOut = false,
 }) => {
   // Inject animations on mount
   useEffect(() => {
@@ -194,9 +230,17 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
     handTransformY: number,
     animDuration: number,
     animDelay: number,
+    isKnockedOut: boolean,
   ) => {
-    const animation =
-      side === "left" ? "idle-arm-swing" : "idle-arm-swing-reverse";
+    const animation = isKnockedOut
+      ? "none"
+      : isAttacking && attackType === "punch"
+        ? side === "left"
+          ? "punch-left"
+          : "punch-right"
+        : side === "left"
+          ? "idle-arm-swing"
+          : "idle-arm-swing-reverse";
     const transformOrigin = side === "left" ? "80px -20px" : "-80px -20px";
 
     return (
@@ -206,8 +250,7 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          animation: `${animation} ${animDuration}s ease-in-out infinite`,
-          animationDelay: `${animDelay}s`,
+          animation: `${animation} ${animDuration}s ease-in-out ${animDelay}s infinite`,
           transformOrigin,
         }}
       >
@@ -300,8 +343,11 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
       {renderRow(
         <div
           style={{
-            animation: `idle-head ${animDuration}s ease-in-out infinite`,
-            animationDelay: `${animDelay}s`,
+            animation: isKnockedOut
+              ? "none"
+              : isAttacking && attackType === "headbutt"
+                ? "headbutt-head 0.4s ease-out"
+                : `idle-head ${animDuration}s ease-in-out ${animDelay}s infinite`,
             width: "100%",
             height: "100%",
             position: "absolute",
@@ -335,13 +381,15 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
             40,
             animDuration,
             animDelay,
+            isKnockedOut,
           )}
 
           {/* Body (center) with animation */}
           <div
             style={{
-              animation: `idle-torso ${animDuration}s ease-in-out infinite`,
-              animationDelay: `${animDelay}s`,
+              animation: isKnockedOut
+                ? "none"
+                : `idle-torso ${animDuration}s ease-in-out ${animDelay}s infinite`,
               width: "100%",
               height: "100%",
               position: "absolute",
@@ -364,6 +412,7 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
             40,
             animDuration,
             animDelay,
+            isKnockedOut,
           )}
         </>,
         "-20px", // Negative margin for overlap with head row
@@ -374,11 +423,36 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
       {/* Row 3: Legs assets */}
       {renderRow(
         <>
-          {/* Right Leg */}
+          {/* Right Leg (no animation) */}
           {renderBodyPart(rightLegAsset, "Right Leg", 1, 0, 0, -40, 0)}
 
-          {/* Left Leg (on top) */}
-          {renderBodyPart(leftLegAsset, "Left Leg", 2, 0, 0, 40, 0)}
+          {/* Left Leg - with kick animation */}
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              animation: isKnockedOut
+                ? "none"
+                : isAttacking && attackType === "kick"
+                  ? "kick-leg 0.4s ease-out"
+                  : "none",
+              zIndex: 2,
+            }}
+          >
+            <img
+              src={leftLegAsset}
+              alt="Left Leg"
+              style={{
+                display: "block",
+                transform: "translate(40px, 0px)",
+              }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          </div>
         </>,
         "-20px", // Negative margin for overlap with body row
         "70px",
