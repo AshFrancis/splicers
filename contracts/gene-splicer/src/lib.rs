@@ -417,113 +417,7 @@ impl GeneSplicer {
             .unwrap_or(false)
     }
 
-    // ========== BLS12-381 DEBUG HELPERS ==========
-
-    /// Test: Deserialize G1 point from 96 bytes (x || y)
-    pub fn test_g1_from_bytes(env: Env, sig_bytes: Bytes) -> bool {
-        if sig_bytes.len() != 96 {
-            return false;
-        }
-        let bytes_n: BytesN<96> = sig_bytes.try_into().unwrap();
-        let _point = G1Affine::from_bytes(bytes_n);
-        true
-    }
-
-    /// Test: Check if G1 point is in subgroup
-    pub fn test_g1_subgroup_check(env: Env, sig_bytes: Bytes) -> bool {
-        if sig_bytes.len() != 96 {
-            return false;
-        }
-        let bytes_n: BytesN<96> = sig_bytes.try_into().unwrap();
-        let point = G1Affine::from_bytes(bytes_n);
-        env.crypto().bls12_381().g1_is_in_subgroup(&point)
-    }
-
-    /// Test: Deserialize G2 point from 192 bytes (x_c1 || x_c0 || y_c1 || y_c0)
-    pub fn test_g2_from_bytes(env: Env, pubkey_bytes: Bytes) -> bool {
-        if pubkey_bytes.len() != 192 {
-            return false;
-        }
-        let bytes_n: BytesN<192> = pubkey_bytes.try_into().unwrap();
-        let _point = G2Affine::from_bytes(bytes_n);
-        true
-    }
-
-    /// Test: Check if G2 point is in subgroup
-    pub fn test_g2_subgroup_check(env: Env, pubkey_bytes: Bytes) -> bool {
-        if pubkey_bytes.len() != 192 {
-            return false;
-        }
-        let bytes_n: BytesN<192> = pubkey_bytes.try_into().unwrap();
-        let point = G2Affine::from_bytes(bytes_n);
-        env.crypto().bls12_381().g2_is_in_subgroup(&point)
-    }
-
-    /// Test: Hash to G1 using drand DST
-    pub fn test_hash_to_g1(env: Env, message: Bytes) -> Bytes {
-        let dst = Bytes::from_slice(&env, b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_");
-        let point = env.crypto().bls12_381().hash_to_g1(&message, &dst);
-        point.to_bytes().into()
-    }
-
-    /// Test: Full pairing check with provided points
-    pub fn test_pairing_check(
-        env: Env,
-        g1_point1: Bytes, // 96 bytes
-        g2_point1: Bytes, // 192 bytes
-        g1_point2: Bytes, // 96 bytes
-        g2_point2: Bytes, // 192 bytes
-    ) -> bool {
-        let g1_1: BytesN<96> = g1_point1.try_into().unwrap();
-        let g2_1: BytesN<192> = g2_point1.try_into().unwrap();
-        let g1_2: BytesN<96> = g1_point2.try_into().unwrap();
-        let g2_2: BytesN<192> = g2_point2.try_into().unwrap();
-
-        let g1_affine1 = G1Affine::from_bytes(g1_1);
-        let g2_affine1 = G2Affine::from_bytes(g2_1);
-        let g1_affine2 = G1Affine::from_bytes(g1_2);
-        let g2_affine2 = G2Affine::from_bytes(g2_2);
-
-        let mut g1_points = Vec::new(&env);
-        g1_points.push_back(g1_affine1);
-        g1_points.push_back(g1_affine2);
-
-        let mut g2_points = Vec::new(&env);
-        g2_points.push_back(g2_affine1);
-        g2_points.push_back(g2_affine2);
-
-        env.crypto().bls12_381().pairing_check(g1_points, g2_points)
-    }
-
-    /// Test: Get G2 generator bytes
-    pub fn test_get_g2_generator(_env: Env) -> Bytes {
-        let bytes = Bytes::from_array(
-            &_env,
-            &[
-                // x_c1 (48 bytes)
-                0x13, 0xe0, 0x2b, 0x60, 0x52, 0x71, 0x9f, 0x60, 0x7d, 0xac, 0xd3, 0xa0,
-                0x88, 0x27, 0x4f, 0x65, 0x59, 0x6b, 0xd0, 0xd0, 0x99, 0x20, 0xb6, 0x1a,
-                0xb5, 0xda, 0x61, 0xbb, 0xdc, 0x7f, 0x50, 0x49, 0x33, 0x4c, 0xf1, 0x12,
-                0x13, 0x94, 0x5d, 0x57, 0xe5, 0xac, 0x7d, 0x05, 0x5d, 0x04, 0x2b, 0x7e,
-                // x_c0 (48 bytes)
-                0x02, 0x4a, 0xa2, 0xb2, 0xf0, 0x8f, 0x0a, 0x91, 0x26, 0x08, 0x05, 0x27,
-                0x2d, 0xc5, 0x10, 0x51, 0xc6, 0xe4, 0x7a, 0xd4, 0xfa, 0x40, 0x3b, 0x02,
-                0xb4, 0x51, 0x0b, 0x64, 0x7a, 0xe3, 0xd1, 0x77, 0x0b, 0xac, 0x03, 0x26,
-                0xa8, 0x05, 0xbb, 0xef, 0xd4, 0x80, 0x56, 0xc8, 0xc1, 0x21, 0xbd, 0xb8,
-                // y_c1 (48 bytes)
-                0x06, 0x06, 0xc4, 0xa0, 0x2e, 0xa7, 0x34, 0xcc, 0x32, 0xac, 0xd2, 0xb0,
-                0x2b, 0xc2, 0x8b, 0x99, 0xcb, 0x3e, 0x28, 0x7e, 0x85, 0xa7, 0x63, 0xaf,
-                0x26, 0x74, 0x92, 0xab, 0x57, 0x2e, 0x99, 0xab, 0x3f, 0x37, 0x0d, 0x27,
-                0x5c, 0xec, 0x1d, 0xa1, 0xaa, 0xa9, 0x07, 0x5f, 0xf0, 0x5f, 0x79, 0xbe,
-                // y_c0 (48 bytes)
-                0x0c, 0xe5, 0xd5, 0x27, 0x72, 0x7d, 0x6e, 0x11, 0x8c, 0xc9, 0xcd, 0xc6,
-                0xda, 0x2e, 0x35, 0x1a, 0xad, 0xfd, 0x9b, 0xaa, 0x8c, 0xbd, 0xd3, 0xa7,
-                0x6d, 0x42, 0x9a, 0x69, 0x51, 0x60, 0xd1, 0x2c, 0x92, 0x3a, 0xc9, 0xcc,
-                0x3b, 0xac, 0xa2, 0x89, 0xe1, 0x93, 0x54, 0x86, 0x08, 0xb8, 0x28, 0x01,
-            ]
-        );
-        bytes
-    }
+    // ========== BLS12-381 TESTING ==========
 
     /// Test: Complete BLS12-381 drand signature verification with all arguments provided
     /// This function accepts all parameters and performs the full verification flow
@@ -733,20 +627,24 @@ impl GeneSplicer {
     /// 7. Perform subgroup check on public key
     /// 8. Construct G2 generator
     /// 9. Verify pairing: e(signature, G2_gen) == e(H(msg), drand_pubkey)
-    fn verify_drand_signature(env: &Env, round: u64, signature: &Bytes) {
+    pub fn verify_drand_signature(env: &Env, round: u64, signature: &Bytes) {
         // Signature must be 96 bytes: x (48 bytes) || y (48 bytes)
         if signature.len() != 96 {
             panic!("Signature must be 96 bytes (uncompressed G1 affine)");
         }
 
-        // Construct G1Affine from signature bytes
-        // Convert Bytes to BytesN<96>
-        let sig_bytes: BytesN<96> = signature.clone().try_into()
-            .unwrap_or_else(|_| panic!("Signature must be exactly 96 bytes"));
-        let sig_point = G1Affine::from_bytes(sig_bytes);
+        // Negate signature BEFORE deserializing to avoid needing to negate G1Affine
+        // Verification: e(sig, G2_gen) == e(H(msg), pubkey)
+        // Rearranges to: e(-sig, G2_gen) * e(H(msg), pubkey) == 1
+        let negated_sig = crate::negate_g1_bytes(env, signature);
 
-        // Subgroup check on signature
-        if !env.crypto().bls12_381().g1_is_in_subgroup(&sig_point) {
+        // Construct G1Affine from negated signature bytes
+        let sig_bytes: BytesN<96> = negated_sig.try_into()
+            .unwrap_or_else(|_| panic!("Signature must be exactly 96 bytes"));
+        let neg_sig_point = G1Affine::from_bytes(sig_bytes);
+
+        // Subgroup check on negated signature
+        if !env.crypto().bls12_381().g1_is_in_subgroup(&neg_sig_point) {
             panic!("Signature not in G1 subgroup");
         }
 
@@ -847,19 +745,16 @@ impl GeneSplicer {
 
         // Construct vectors for pairing check
         // Verify: e(signature, G2_gen) == e(H(msg), pubkey)
-        // Using pairing_check: e(sig, G2_gen) * e(-H(msg), pubkey) == 1
-        // This requires negating the hashed message point
-        let neg_hashed_point = crate::negate_g1_point(env, &hashed_point);
-
+        // Using pairing_check: e(-sig, G2_gen) * e(H(msg), pubkey) == 1
         let mut g1_points = Vec::new(env);
-        g1_points.push_back(sig_point);        // signature
-        g1_points.push_back(neg_hashed_point); // -H(msg)
+        g1_points.push_back(neg_sig_point);  // -signature (negated earlier)
+        g1_points.push_back(hashed_point);   // H(msg)
 
         let mut g2_points = Vec::new(env);
-        g2_points.push_back(g2_gen);          // G2 generator
-        g2_points.push_back(drand_pubkey);    // drand public key
+        g2_points.push_back(g2_gen);         // G2 generator
+        g2_points.push_back(drand_pubkey);   // drand public key
 
-        // Perform pairing check: e(sig, G2_gen) * e(-H(msg), pubkey) == 1
+        // Perform pairing check: e(-sig, G2_gen) * e(H(msg), pubkey) == 1
         let valid = env
             .crypto()
             .bls12_381()
