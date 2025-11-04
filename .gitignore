@@ -46,3 +46,8 @@ packages/*
 # generated contract client imports
 src/contracts/*
 !src/contracts/util.ts
+
+# Test artifacts
+playwright-report/
+test-results/
+.stellar/
