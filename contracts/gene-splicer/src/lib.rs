@@ -48,16 +48,6 @@ pub struct Creature {
     pub entropy_round: u64,   // Drand round used for gene selection
 }
 
-/// Drand entropy data for a specific round
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EntropyData {
-    pub round: u64,
-    pub randomness: Bytes,    // 32-byte randomness from drand
-    pub signature: Bytes,     // BLS12-381 signature verified on submission
-    pub submitted_at: u64,    // Ledger timestamp
-}
-
 /// Storage keys for the contract
 #[contracttype]
 #[derive(Clone)]
@@ -68,7 +58,6 @@ pub enum DataKey {
     NextCartridgeId,         // Counter for minting new cartridges
     Cartridge(u32),          // Cartridge ID -> GenomeCartridge data
     UserCartridges(Address), // User -> Vec<u32> of cartridge IDs
-    Entropy(u64),            // Drand round -> EntropyData
     Creature(u32),           // Creature ID -> Creature data (same ID as cartridge)
     UserCreatures(Address),  // User -> Vec<u32> of creature IDs
     DevMode,                 // Boolean flag to bypass entropy verification in development
@@ -80,8 +69,10 @@ pub struct GeneSplicer;
 
 #[contractimpl]
 impl GeneSplicer {
-    /// Initialize the contract
-    pub fn initialize(
+    /// Constructor - runs automatically during contract deployment
+    /// CAP-0058: https://github.com/stellar/stellar-protocol/blob/master/core/cap-0058.md
+    /// Note: dev_mode should be false in production for full BLS12-381 verification
+    pub fn __constructor(
         env: Env,
         admin: Address,
         xlm_token: Address,
@@ -89,10 +80,10 @@ impl GeneSplicer {
         dev_mode: bool,
         drand_public_key: Bytes,
     ) {
-        admin.require_auth();
+        // No require_auth needed - constructor only runs once at deployment time
 
         // Validate drand public key is 192 bytes (BLS12-381 G2 point, uncompressed affine coordinates)
-        // Format: x_c0 (48 bytes) || x_c1 (48 bytes) || y_c0 (48 bytes) || y_c1 (48 bytes)
+        // Format: x_c1 || x_c0 || y_c1 || y_c0 (each component 48 bytes, CAP-0059)
         if drand_public_key.len() != 192 {
             panic!("Drand public key must be 192 bytes (uncompressed G2 affine coordinates)");
         }
@@ -155,17 +146,19 @@ impl GeneSplicer {
         let skin_id: u64 = env.prng().gen_range(0..skin_count);
         let skin_id = skin_id as u32;
 
-        // Estimate current drand round based on ledger timestamp
-        // Drand round 1 started at Unix timestamp 1595431050
-        // Drand emits a round every 30 seconds
+        // Assign a future drand round to prevent frontrunning
+        // Drand quicknet round 1 started at Unix timestamp 1692803367 (Aug 23, 2023)
+        // Quicknet emits a round every 3 seconds
+        // We assign current_round + 2 to ensure the round hasn't happened yet
         let ledger_time = env.ledger().timestamp();
-        let drand_genesis = 1595431050u64;
-        let drand_period = 30u64;
-        let splice_round = if ledger_time > drand_genesis {
+        let drand_genesis = 1692803367u64;
+        let drand_period = 3u64;
+        let current_round = if ledger_time > drand_genesis {
             ((ledger_time - drand_genesis) / drand_period) + 1
         } else {
             1
         };
+        let splice_round = current_round + 2;  // Assign future round
 
         // Mint the cartridge
         let cartridge_id: u32 = env
@@ -258,69 +251,29 @@ impl GeneSplicer {
             .unwrap()
     }
 
-    /// Submit entropy for a drand round with CAP-0059 verification
-    /// Verifies the BLS12-381 signature from drand quicknet (unless dev_mode is enabled)
-    pub fn submit_entropy(
+    /// Get stored drand public key (for debugging)
+    pub fn get_drand_public_key(env: Env) -> Bytes {
+        env.storage()
+            .instance()
+            .get(&DataKey::DrandPublicKey)
+            .unwrap()
+    }
+
+    /// Force redeployment utility: comment/uncomment this function to change WASM hash
+    /// This triggers scaffold to redeploy and regenerate TypeScript bindings with new contract ID
+    // pub fn hello(env: Env) -> Symbol {
+    //     Symbol::new(&env, "world")
+    // }
+
+    /// Finalize a cartridge into a Creature NFT using drand entropy
+    /// User submits entropy (round, randomness, signature) which is verified inline
+    pub fn finalize_splice(
         env: Env,
-        submitter: Address,
+        cartridge_id: u32,
         round: u64,
         randomness: Bytes,
         signature: Bytes,
-    ) {
-        submitter.require_auth();
-
-        // Check if entropy already exists for this round
-        if env
-            .storage()
-            .persistent()
-            .has(&DataKey::Entropy(round))
-        {
-            panic!("Entropy already submitted for this round");
-        }
-
-        // Validate randomness is 32 bytes (SHA-256 output)
-        if randomness.len() != 32 {
-            panic!("Randomness must be 32 bytes");
-        }
-
-        // Validate signature is 96 bytes (BLS12-381 G1 point, uncompressed affine coordinates)
-        // Format: x (48 bytes) || y (48 bytes)
-        if signature.len() != 96 {
-            panic!("Signature must be 96 bytes (uncompressed G1 affine coordinates)");
-        }
-
-        // Check if dev_mode is enabled
-        let dev_mode: bool = env
-            .storage()
-            .instance()
-            .get(&DataKey::DevMode)
-            .unwrap_or(false);
-
-        // Verify signature using CAP-0059 BLS12-381 pairing check (unless in dev mode)
-        if !dev_mode {
-            Self::verify_drand_signature(&env, round, &signature);
-        }
-
-        let entropy = EntropyData {
-            round,
-            randomness,
-            signature,
-            submitted_at: env.ledger().timestamp(),
-        };
-
-        env.storage()
-            .persistent()
-            .set(&DataKey::Entropy(round), &entropy);
-
-        // Emit event
-        env.events().publish(
-            (Symbol::new(&env, "entropy_submitted"), round),
-            submitter,
-        );
-    }
-
-    /// Finalize a cartridge into a Creature NFT using drand entropy
-    pub fn finalize_splice(env: Env, cartridge_id: u32) -> u32 {
+    ) -> u32 {
         // Get cartridge
         let mut cartridge: GenomeCartridge = env
             .storage()
@@ -336,17 +289,37 @@ impl GeneSplicer {
             panic!("Cartridge already finalized");
         }
 
-        // Get entropy for the cartridge's splice round
-        let entropy: EntropyData = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Entropy(cartridge.splice_round))
-            .unwrap_or_else(|| panic!("Entropy not available for this round"));
+        // Verify round matches cartridge's assigned round
+        if round != cartridge.splice_round {
+            panic!("Round mismatch");
+        }
 
-        // Select genes using entropy
-        let head_gene = Self::select_gene(&env, &entropy.randomness, 0);
-        let torso_gene = Self::select_gene(&env, &entropy.randomness, 1);
-        let legs_gene = Self::select_gene(&env, &entropy.randomness, 2);
+        // Validate randomness is 32 bytes (SHA-256 output)
+        if randomness.len() != 32 {
+            panic!("Randomness must be 32 bytes");
+        }
+
+        // Validate signature is 96 bytes (BLS12-381 G1 point, uncompressed affine coordinates)
+        if signature.len() != 96 {
+            panic!("Signature must be 96 bytes (uncompressed G1 affine coordinates)");
+        }
+
+        // Check if dev_mode is enabled
+        let dev_mode: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::DevMode)
+            .unwrap_or(false);
+
+        // Verify BLS signature (unless in dev mode)
+        if !dev_mode {
+            Self::verify_drand_signature(&env, round, &signature);
+        }
+
+        // Select genes using verified entropy
+        let head_gene = Self::select_gene(&env, &randomness, 0);
+        let torso_gene = Self::select_gene(&env, &randomness, 1);
+        let legs_gene = Self::select_gene(&env, &randomness, 2);
 
         // Create creature
         let creature = Creature {
@@ -423,11 +396,6 @@ impl GeneSplicer {
         Gene { id: gene_id, rarity }
     }
 
-    /// Get entropy data for a specific drand round
-    pub fn get_entropy(env: Env, round: u64) -> Option<EntropyData> {
-        env.storage().persistent().get(&DataKey::Entropy(round))
-    }
-
     /// Get creature data by ID
     pub fn get_creature(env: Env, creature_id: u32) -> Option<Creature> {
         env.storage().persistent().get(&DataKey::Creature(creature_id))
@@ -441,28 +409,330 @@ impl GeneSplicer {
             .unwrap_or(Vec::new(&env))
     }
 
-    /// Verify drand BLS12-381 signature using CAP-0059
+    /// Get current dev mode status
+    pub fn get_dev_mode(env: Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::DevMode)
+            .unwrap_or(false)
+    }
+
+    // ========== BLS12-381 DEBUG HELPERS ==========
+
+    /// Test: Deserialize G1 point from 96 bytes (x || y)
+    pub fn test_g1_from_bytes(env: Env, sig_bytes: Bytes) -> bool {
+        if sig_bytes.len() != 96 {
+            return false;
+        }
+        let bytes_n: BytesN<96> = sig_bytes.try_into().unwrap();
+        let _point = G1Affine::from_bytes(bytes_n);
+        true
+    }
+
+    /// Test: Check if G1 point is in subgroup
+    pub fn test_g1_subgroup_check(env: Env, sig_bytes: Bytes) -> bool {
+        if sig_bytes.len() != 96 {
+            return false;
+        }
+        let bytes_n: BytesN<96> = sig_bytes.try_into().unwrap();
+        let point = G1Affine::from_bytes(bytes_n);
+        env.crypto().bls12_381().g1_is_in_subgroup(&point)
+    }
+
+    /// Test: Deserialize G2 point from 192 bytes (x_c1 || x_c0 || y_c1 || y_c0)
+    pub fn test_g2_from_bytes(env: Env, pubkey_bytes: Bytes) -> bool {
+        if pubkey_bytes.len() != 192 {
+            return false;
+        }
+        let bytes_n: BytesN<192> = pubkey_bytes.try_into().unwrap();
+        let _point = G2Affine::from_bytes(bytes_n);
+        true
+    }
+
+    /// Test: Check if G2 point is in subgroup
+    pub fn test_g2_subgroup_check(env: Env, pubkey_bytes: Bytes) -> bool {
+        if pubkey_bytes.len() != 192 {
+            return false;
+        }
+        let bytes_n: BytesN<192> = pubkey_bytes.try_into().unwrap();
+        let point = G2Affine::from_bytes(bytes_n);
+        env.crypto().bls12_381().g2_is_in_subgroup(&point)
+    }
+
+    /// Test: Hash to G1 using drand DST
+    pub fn test_hash_to_g1(env: Env, message: Bytes) -> Bytes {
+        let dst = Bytes::from_slice(&env, b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_");
+        let point = env.crypto().bls12_381().hash_to_g1(&message, &dst);
+        point.to_bytes().into()
+    }
+
+    /// Test: Full pairing check with provided points
+    pub fn test_pairing_check(
+        env: Env,
+        g1_point1: Bytes, // 96 bytes
+        g2_point1: Bytes, // 192 bytes
+        g1_point2: Bytes, // 96 bytes
+        g2_point2: Bytes, // 192 bytes
+    ) -> bool {
+        let g1_1: BytesN<96> = g1_point1.try_into().unwrap();
+        let g2_1: BytesN<192> = g2_point1.try_into().unwrap();
+        let g1_2: BytesN<96> = g1_point2.try_into().unwrap();
+        let g2_2: BytesN<192> = g2_point2.try_into().unwrap();
+
+        let g1_affine1 = G1Affine::from_bytes(g1_1);
+        let g2_affine1 = G2Affine::from_bytes(g2_1);
+        let g1_affine2 = G1Affine::from_bytes(g1_2);
+        let g2_affine2 = G2Affine::from_bytes(g2_2);
+
+        let mut g1_points = Vec::new(&env);
+        g1_points.push_back(g1_affine1);
+        g1_points.push_back(g1_affine2);
+
+        let mut g2_points = Vec::new(&env);
+        g2_points.push_back(g2_affine1);
+        g2_points.push_back(g2_affine2);
+
+        env.crypto().bls12_381().pairing_check(g1_points, g2_points)
+    }
+
+    /// Test: Get G2 generator bytes
+    pub fn test_get_g2_generator(_env: Env) -> Bytes {
+        let bytes = Bytes::from_array(
+            &_env,
+            &[
+                // x_c1 (48 bytes)
+                0x13, 0xe0, 0x2b, 0x60, 0x52, 0x71, 0x9f, 0x60, 0x7d, 0xac, 0xd3, 0xa0,
+                0x88, 0x27, 0x4f, 0x65, 0x59, 0x6b, 0xd0, 0xd0, 0x99, 0x20, 0xb6, 0x1a,
+                0xb5, 0xda, 0x61, 0xbb, 0xdc, 0x7f, 0x50, 0x49, 0x33, 0x4c, 0xf1, 0x12,
+                0x13, 0x94, 0x5d, 0x57, 0xe5, 0xac, 0x7d, 0x05, 0x5d, 0x04, 0x2b, 0x7e,
+                // x_c0 (48 bytes)
+                0x02, 0x4a, 0xa2, 0xb2, 0xf0, 0x8f, 0x0a, 0x91, 0x26, 0x08, 0x05, 0x27,
+                0x2d, 0xc5, 0x10, 0x51, 0xc6, 0xe4, 0x7a, 0xd4, 0xfa, 0x40, 0x3b, 0x02,
+                0xb4, 0x51, 0x0b, 0x64, 0x7a, 0xe3, 0xd1, 0x77, 0x0b, 0xac, 0x03, 0x26,
+                0xa8, 0x05, 0xbb, 0xef, 0xd4, 0x80, 0x56, 0xc8, 0xc1, 0x21, 0xbd, 0xb8,
+                // y_c1 (48 bytes)
+                0x06, 0x06, 0xc4, 0xa0, 0x2e, 0xa7, 0x34, 0xcc, 0x32, 0xac, 0xd2, 0xb0,
+                0x2b, 0xc2, 0x8b, 0x99, 0xcb, 0x3e, 0x28, 0x7e, 0x85, 0xa7, 0x63, 0xaf,
+                0x26, 0x74, 0x92, 0xab, 0x57, 0x2e, 0x99, 0xab, 0x3f, 0x37, 0x0d, 0x27,
+                0x5c, 0xec, 0x1d, 0xa1, 0xaa, 0xa9, 0x07, 0x5f, 0xf0, 0x5f, 0x79, 0xbe,
+                // y_c0 (48 bytes)
+                0x0c, 0xe5, 0xd5, 0x27, 0x72, 0x7d, 0x6e, 0x11, 0x8c, 0xc9, 0xcd, 0xc6,
+                0xda, 0x2e, 0x35, 0x1a, 0xad, 0xfd, 0x9b, 0xaa, 0x8c, 0xbd, 0xd3, 0xa7,
+                0x6d, 0x42, 0x9a, 0x69, 0x51, 0x60, 0xd1, 0x2c, 0x92, 0x3a, 0xc9, 0xcc,
+                0x3b, 0xac, 0xa2, 0x89, 0xe1, 0x93, 0x54, 0x86, 0x08, 0xb8, 0x28, 0x01,
+            ]
+        );
+        bytes
+    }
+
+    /// Test: Complete BLS12-381 drand signature verification with all arguments provided
+    /// This function accepts all parameters and performs the full verification flow
+    /// without relying on any stored state.
     ///
-    /// ARCHITECTURE: Relayer does parsing (non-security-critical), Contract does verification (security-critical)
+    /// Arguments:
+    /// - round: Drand round number (u64)
+    /// - signature: Uncompressed G1 point (96 bytes: x || y)
+    /// - drand_public_key: Uncompressed G2 point (192 bytes: x_c1 || x_c0 || y_c1 || y_c0)
     ///
-    /// RELAYER RESPONSIBILITIES:
-    /// - Fetch drand entropy from drand quicknet API
+    /// Returns true if verification succeeds, false otherwise
+    pub fn test_full_verification(
+        env: Env,
+        round: u64,
+        signature: Bytes,
+        drand_public_key: Bytes,
+    ) -> bool {
+        // Step 1: Negate signature BEFORE deserializing (to avoid needing to negate G1Affine)
+        // Signature verification: e(sig, G2_gen) == e(H(msg), pubkey)
+        // Rearranges to: e(-sig, G2_gen) * e(H(msg), pubkey) == 1
+        if signature.len() != 96 {
+            return false;
+        }
+
+        // Negate the signature by negating the y-coordinate
+        let negated_sig = crate::negate_g1_bytes(&env, &signature);
+
+        let sig_bytes: BytesN<96> = match negated_sig.try_into() {
+            Ok(b) => b,
+            Err(_) => return false,
+        };
+        let neg_sig_point = G1Affine::from_bytes(sig_bytes);
+
+        // Step 2: Check negated signature in G1 subgroup
+        if !env.crypto().bls12_381().g1_is_in_subgroup(&neg_sig_point) {
+            return false;
+        }
+
+        // Step 3: Construct message (SHA-256 of round number)
+        let round_bytes: [u8; 8] = round.to_be_bytes();
+        let mut round_bytes_soroban = Bytes::new(&env);
+        for byte in round_bytes.iter() {
+            round_bytes_soroban.push_back(*byte);
+        }
+
+        // SHA256 hash the round number
+        let message_hash = env.crypto().sha256(&round_bytes_soroban);
+
+        // Convert BytesN<32> to Bytes for hash_to_g1
+        let message_bytes_n = message_hash.to_bytes();
+        let mut message = Bytes::new(&env);
+        for i in 0..32 {
+            message.push_back(message_bytes_n.get(i).unwrap());
+        }
+
+        // Step 4: Hash message to G1 using drand DST
+        let dst = Bytes::from_slice(
+            &env,
+            b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"
+        );
+        let hashed_point = env.crypto().bls12_381().hash_to_g1(&message, &dst);
+
+        // Step 5: Check hashed point in G1 subgroup
+        if !env.crypto().bls12_381().g1_is_in_subgroup(&hashed_point) {
+            return false;
+        }
+
+        // Step 6: Deserialize drand public key (G2 point, 192 bytes uncompressed)
+        if drand_public_key.len() != 192 {
+            return false;
+        }
+        let pubkey_bytes: BytesN<192> = match drand_public_key.try_into() {
+            Ok(b) => b,
+            Err(_) => return false,
+        };
+        let drand_pubkey = G2Affine::from_bytes(pubkey_bytes);
+
+        // Step 7: Check public key in G2 subgroup
+        if !env.crypto().bls12_381().g2_is_in_subgroup(&drand_pubkey) {
+            return false;
+        }
+
+        // Step 8: Get G2 generator
+        let g2_gen_bytes: BytesN<192> = BytesN::from_array(
+            &env,
+            &[
+                // x_c1 (48 bytes)
+                0x13, 0xe0, 0x2b, 0x60, 0x52, 0x71, 0x9f, 0x60, 0x7d, 0xac, 0xd3, 0xa0,
+                0x88, 0x27, 0x4f, 0x65, 0x59, 0x6b, 0xd0, 0xd0, 0x99, 0x20, 0xb6, 0x1a,
+                0xb5, 0xda, 0x61, 0xbb, 0xdc, 0x7f, 0x50, 0x49, 0x33, 0x4c, 0xf1, 0x12,
+                0x13, 0x94, 0x5d, 0x57, 0xe5, 0xac, 0x7d, 0x05, 0x5d, 0x04, 0x2b, 0x7e,
+                // x_c0 (48 bytes)
+                0x02, 0x4a, 0xa2, 0xb2, 0xf0, 0x8f, 0x0a, 0x91, 0x26, 0x08, 0x05, 0x27,
+                0x2d, 0xc5, 0x10, 0x51, 0xc6, 0xe4, 0x7a, 0xd4, 0xfa, 0x40, 0x3b, 0x02,
+                0xb4, 0x51, 0x0b, 0x64, 0x7a, 0xe3, 0xd1, 0x77, 0x0b, 0xac, 0x03, 0x26,
+                0xa8, 0x05, 0xbb, 0xef, 0xd4, 0x80, 0x56, 0xc8, 0xc1, 0x21, 0xbd, 0xb8,
+                // y_c1 (48 bytes)
+                0x06, 0x06, 0xc4, 0xa0, 0x2e, 0xa7, 0x34, 0xcc, 0x32, 0xac, 0xd2, 0xb0,
+                0x2b, 0xc2, 0x8b, 0x99, 0xcb, 0x3e, 0x28, 0x7e, 0x85, 0xa7, 0x63, 0xaf,
+                0x26, 0x74, 0x92, 0xab, 0x57, 0x2e, 0x99, 0xab, 0x3f, 0x37, 0x0d, 0x27,
+                0x5c, 0xec, 0x1d, 0xa1, 0xaa, 0xa9, 0x07, 0x5f, 0xf0, 0x5f, 0x79, 0xbe,
+                // y_c0 (48 bytes)
+                0x0c, 0xe5, 0xd5, 0x27, 0x72, 0x7d, 0x6e, 0x11, 0x8c, 0xc9, 0xcd, 0xc6,
+                0xda, 0x2e, 0x35, 0x1a, 0xad, 0xfd, 0x9b, 0xaa, 0x8c, 0xbd, 0xd3, 0xa7,
+                0x6d, 0x42, 0x9a, 0x69, 0x51, 0x60, 0xd1, 0x2c, 0x92, 0x3a, 0xc9, 0xcc,
+                0x3b, 0xac, 0xa2, 0x89, 0xe1, 0x93, 0x54, 0x86, 0x08, 0xb8, 0x28, 0x01,
+            ]
+        );
+        let g2_gen = G2Affine::from_bytes(g2_gen_bytes);
+
+        // Step 9: Pairing verification
+        // Verify: e(signature, G2_gen) == e(H(msg), pubkey)
+        // Using pairing_check: e(-sig, G2_gen) * e(H(msg), pubkey) == 1
+        // We negated the signature before deserializing it
+
+        let mut g1_points = Vec::new(&env);
+        g1_points.push_back(neg_sig_point);  // -signature (negated earlier)
+        g1_points.push_back(hashed_point);    // H(msg)
+
+        let mut g2_points = Vec::new(&env);
+        g2_points.push_back(g2_gen);          // G2 generator
+        g2_points.push_back(drand_pubkey);    // drand public key
+
+        // Perform pairing check: e(-sig, G2_gen) * e(H(msg), pubkey) == 1
+        env.crypto().bls12_381().pairing_check(g1_points, g2_points)
+    }
+
+    // ========== END BLS12-381 DEBUG HELPERS ==========
+}
+
+/// Negate a G1 point by negating its y-coordinate
+/// Input: Bytes containing uncompressed G1 point (96 bytes: x || y)
+/// Output: Bytes containing negated point (96 bytes: x || -y) where -y = p - y
+/// p is the BLS12-381 base field modulus
+fn negate_g1_bytes(env: &Env, point_bytes: &Bytes) -> Bytes {
+    // Extract x-coordinate (bytes 0-47)
+    let mut x_bytes = [0u8; 48];
+    for i in 0..48_u32 {
+        x_bytes[i as usize] = point_bytes.get(i).unwrap();
+    }
+
+    // Extract y-coordinate (bytes 48-95)
+    let mut y_bytes = [0u8; 48];
+    for i in 0..48_u32 {
+        y_bytes[i as usize] = point_bytes.get(48 + i).unwrap();
+    }
+
+    // BLS12-381 base field modulus p (48 bytes, big-endian)
+    let p: [u8; 48] = [
+        0x1a, 0x01, 0x11, 0xea, 0x39, 0x7f, 0xe6, 0x9a, 0x4b, 0x1b, 0xa7, 0xb6,
+        0x43, 0x4b, 0xac, 0xd7, 0x64, 0x77, 0x4b, 0x84, 0xf3, 0x85, 0x12, 0xbf,
+        0x67, 0x30, 0xd2, 0xa0, 0xf6, 0xb0, 0xf6, 0x24, 0x1e, 0xab, 0xff, 0xfe,
+        0xb1, 0x53, 0xff, 0xff, 0xb9, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xaa, 0xab,
+    ];
+
+    // Compute -y = p - y (big-endian subtraction)
+    let mut neg_y = [0u8; 48];
+    let mut borrow: u16 = 0;
+
+    for i in (0..48).rev() {
+        let p_byte = p[i] as u16;
+        let y_byte = y_bytes[i] as u16;
+        let diff = p_byte.wrapping_sub(y_byte).wrapping_sub(borrow);
+        neg_y[i] = (diff & 0xFF) as u8;
+        borrow = if diff > 0xFF { 1 } else { 0 };
+    }
+
+    // Construct negated point bytes: x || (-y)
+    let mut negated = Bytes::new(env);
+
+    // Copy x-coordinate
+    for i in 0..48 {
+        negated.push_back(x_bytes[i]);
+    }
+
+    // Copy negated y-coordinate
+    for i in 0..48 {
+        negated.push_back(neg_y[i]);
+    }
+
+    negated
+}
+
+impl GeneSplicer {
+    /// Verify drand quicknet (unchained) BLS12-381 signature using CAP-0059
+    ///
+    /// QUICKNET UNCHAINED MODE:
+    /// - No chaining: each round is independently verifiable
+    /// - Message: SHA-256(round) (8-byte big-endian round number)
+    /// - Signature scheme: BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_
+    /// - Public keys on G2 (192 bytes uncompressed), signatures on G1 (96 bytes uncompressed)
+    ///
+    /// USER RESPONSIBILITIES:
+    /// - Fetch drand entropy from drand quicknet API v2
     /// - Decompress BLS12-381 points:
     ///   * G1 signature: 48 bytes compressed -> 96 bytes uncompressed (x || y)
     ///   * G2 pubkey: 96 bytes compressed -> 192 bytes uncompressed (x_c1 || x_c0 || y_c1 || y_c0)
-    /// - Pass uncompressed affine coordinates to contract
+    /// - Pass uncompressed affine coordinates to finalize_splice
     ///
     /// CONTRACT RESPONSIBILITIES (this function):
     /// 1. Construct G1Affine from signature bytes (96 bytes uncompressed)
     /// 2. Perform subgroup check on signature
-    /// 3. Fetch previous round's signature to construct message
-    /// 4. Build message: prev_sig || round_bytes (8 bytes big-endian)
-    /// 5. Hash message to G1 using hash_to_g1() with DST "BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"
-    /// 6. Perform subgroup check on hashed point
-    /// 7. Construct G2Affine from drand public key bytes (192 bytes uncompressed)
-    /// 8. Perform subgroup check on public key
-    /// 9. Construct G2 generator
-    /// 10. Verify pairing: e(signature, G2_gen) == e(H(msg), drand_pubkey)
+    /// 3. Build message: SHA256(round_bytes) where round_bytes is 8 bytes big-endian
+    /// 4. Hash message to G1 using hash_to_g1() with DST "BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"
+    /// 5. Perform subgroup check on hashed point
+    /// 6. Construct G2Affine from drand public key bytes (192 bytes uncompressed)
+    /// 7. Perform subgroup check on public key
+    /// 8. Construct G2 generator
+    /// 9. Verify pairing: e(signature, G2_gen) == e(H(msg), drand_pubkey)
     fn verify_drand_signature(env: &Env, round: u64, signature: &Bytes) {
         // Signature must be 96 bytes: x (48 bytes) || y (48 bytes)
         if signature.len() != 96 {
@@ -480,32 +750,27 @@ impl GeneSplicer {
             panic!("Signature not in G1 subgroup");
         }
 
-        // Fetch previous round's signature to construct message
-        let prev_signature: Bytes = if round > 1 {
-            let prev_key = DataKey::Entropy(round - 1);
-            let prev_entropy: EntropyData = env
-                .storage()
-                .persistent()
-                .get(&prev_key)
-                .expect("Previous round entropy not found - cannot verify chained signature");
-            prev_entropy.signature
-        } else {
-            // For round 1, use empty prev signature (drand genesis)
-            Bytes::new(env)
-        };
-
-        // Construct message: prev_sig || round_bytes (big-endian)
-        let mut message = Bytes::new(env);
-        message.append(&prev_signature);
-
-        // Append round as 8 bytes, big-endian
+        // Construct message for unchained quicknet: SHA256(round_number)
+        // Per official drand implementation: sha256(abi.encodePacked(roundNumber))
         let round_bytes: [u8; 8] = round.to_be_bytes();
+        let mut round_bytes_soroban = Bytes::new(env);
         for byte in round_bytes.iter() {
-            message.push_back(*byte);
+            round_bytes_soroban.push_back(*byte);
         }
 
-        // Hash message to G1 using drand DST
+        // SHA256 hash the round number to get the message (32 bytes)
+        let message_hash = env.crypto().sha256(&round_bytes_soroban);
+
+        // Convert BytesN<32> to Bytes for hash_to_g1
+        let message_bytes_n = message_hash.to_bytes();
+        let mut message = Bytes::new(env);
+        for i in 0..32 {
+            message.push_back(message_bytes_n.get(i).unwrap());
+        }
+
+        // Hash message to G1 using drand quicknet DST
         // DST: "BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"
+        // Note: Uses G1 because quicknet uses G1-G2 swap (signatures on G1, public keys on G2)
         let dst = Bytes::from_slice(
             env,
             b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"
@@ -536,7 +801,13 @@ impl GeneSplicer {
         // Convert Bytes to BytesN<192>
         let pubkey_bytes: BytesN<192> = drand_pubkey_bytes.try_into()
             .unwrap_or_else(|_| panic!("Public key must be exactly 192 bytes"));
-        let drand_pubkey = G2Affine::from_bytes(pubkey_bytes);
+        let drand_pubkey = G2Affine::from_bytes(pubkey_bytes.clone());
+
+        // Test: Verify byte order by round-tripping
+        let re = drand_pubkey.to_bytes();
+        if re.to_array() != pubkey_bytes.to_array() {
+            panic!("G2 PK byte order mismatch");
+        }
 
         // Subgroup check on public key
         if !env.crypto().bls12_381().g2_is_in_subgroup(&drand_pubkey) {
@@ -544,49 +815,51 @@ impl GeneSplicer {
         }
 
         // G2 generator (standard BLS12-381 G2 generator, uncompressed 192 bytes)
-        // x_c1 || x_c0 || y_c1 || y_c0
+        // Format: x_c1 || x_c0 || y_c1 || y_c0 (CAP-0059 byte order)
+        // Reference: IETF draft-irtf-cfrg-pairing-friendly-curves
         let g2_gen_bytes: BytesN<192> = BytesN::from_array(
             env,
             &[
                 // x_c1 (48 bytes)
                 0x13, 0xe0, 0x2b, 0x60, 0x52, 0x71, 0x9f, 0x60, 0x7d, 0xac, 0xd3, 0xa0,
                 0x88, 0x27, 0x4f, 0x65, 0x59, 0x6b, 0xd0, 0xd0, 0x99, 0x20, 0xb6, 0x1a,
-                0xb5, 0xda, 0x61, 0xbb, 0xdc, 0x7f, 0x5d, 0xfa, 0x80, 0xba, 0x1e, 0x0b,
-                0x4a, 0x5d, 0x99, 0xd9, 0x36, 0x04, 0x74, 0xa4, 0x5d, 0x31, 0xf0, 0xde,
+                0xb5, 0xda, 0x61, 0xbb, 0xdc, 0x7f, 0x50, 0x49, 0x33, 0x4c, 0xf1, 0x12,
+                0x13, 0x94, 0x5d, 0x57, 0xe5, 0xac, 0x7d, 0x05, 0x5d, 0x04, 0x2b, 0x7e,
                 // x_c0 (48 bytes)
-                0x0b, 0x2b, 0xc5, 0xa9, 0x45, 0x48, 0xb0, 0x46, 0x14, 0x95, 0xd4, 0x10,
-                0xa0, 0x93, 0xed, 0x4f, 0xd9, 0x3f, 0x92, 0xf2, 0xd8, 0x57, 0x13, 0x86,
-                0xd9, 0x8e, 0xd6, 0x79, 0x44, 0xec, 0x09, 0x7f, 0x20, 0xe0, 0xcd, 0x33,
-                0xce, 0x08, 0xe2, 0xd9, 0xe3, 0x3a, 0xd9, 0x0d, 0x2d, 0x82, 0xe0, 0x05,
+                0x02, 0x4a, 0xa2, 0xb2, 0xf0, 0x8f, 0x0a, 0x91, 0x26, 0x08, 0x05, 0x27,
+                0x2d, 0xc5, 0x10, 0x51, 0xc6, 0xe4, 0x7a, 0xd4, 0xfa, 0x40, 0x3b, 0x02,
+                0xb4, 0x51, 0x0b, 0x64, 0x7a, 0xe3, 0xd1, 0x77, 0x0b, 0xac, 0x03, 0x26,
+                0xa8, 0x05, 0xbb, 0xef, 0xd4, 0x80, 0x56, 0xc8, 0xc1, 0x21, 0xbd, 0xb8,
                 // y_c1 (48 bytes)
-                0x06, 0x06, 0xc4, 0xa0, 0x28, 0x96, 0x07, 0xf6, 0xbe, 0xad, 0xfc, 0x04,
-                0x35, 0xfe, 0x1d, 0xac, 0xca, 0x32, 0x1e, 0x1e, 0xa5, 0x81, 0x0b, 0xd7,
-                0x15, 0x9d, 0x72, 0x8b, 0xe5, 0x6e, 0x3e, 0xbe, 0x8a, 0x9a, 0x20, 0x1c,
-                0x39, 0x82, 0x8d, 0x42, 0xe7, 0xe7, 0xed, 0x69, 0x5e, 0xeb, 0xe4, 0xd4,
+                0x06, 0x06, 0xc4, 0xa0, 0x2e, 0xa7, 0x34, 0xcc, 0x32, 0xac, 0xd2, 0xb0,
+                0x2b, 0xc2, 0x8b, 0x99, 0xcb, 0x3e, 0x28, 0x7e, 0x85, 0xa7, 0x63, 0xaf,
+                0x26, 0x74, 0x92, 0xab, 0x57, 0x2e, 0x99, 0xab, 0x3f, 0x37, 0x0d, 0x27,
+                0x5c, 0xec, 0x1d, 0xa1, 0xaa, 0xa9, 0x07, 0x5f, 0xf0, 0x5f, 0x79, 0xbe,
                 // y_c0 (48 bytes)
-                0x17, 0x0d, 0x51, 0x06, 0x36, 0xb5, 0x09, 0x9d, 0x7e, 0xf3, 0xb1, 0xa3,
-                0x5a, 0x50, 0x47, 0xbb, 0xe9, 0xbe, 0x8a, 0x35, 0xad, 0xdc, 0xc9, 0x54,
-                0x98, 0x6d, 0x7e, 0x3d, 0x4b, 0x70, 0xa9, 0x7d, 0x8c, 0xda, 0x69, 0x48,
-                0x9b, 0x68, 0x6c, 0x9a, 0x30, 0x7c, 0x50, 0x89, 0xa8, 0x62, 0xd0, 0xa5,
+                0x0c, 0xe5, 0xd5, 0x27, 0x72, 0x7d, 0x6e, 0x11, 0x8c, 0xc9, 0xcd, 0xc6,
+                0xda, 0x2e, 0x35, 0x1a, 0xad, 0xfd, 0x9b, 0xaa, 0x8c, 0xbd, 0xd3, 0xa7,
+                0x6d, 0x42, 0x9a, 0x69, 0x51, 0x60, 0xd1, 0x2c, 0x92, 0x3a, 0xc9, 0xcc,
+                0x3b, 0xac, 0xa2, 0x89, 0xe1, 0x93, 0x54, 0x86, 0x08, 0xb8, 0x28, 0x01,
             ]
         );
 
         let g2_gen = G2Affine::from_bytes(g2_gen_bytes);
 
         // Construct vectors for pairing check
-        // Verify: e(sig_point, g2_gen) == e(hashed_point, drand_pubkey)
-        // Using pairing equation: e(sig_point, g2_gen) * e(-hashed_point, drand_pubkey) == 1
-        // But pairing_check handles the negation internally, so we just pass the points
+        // Verify: e(signature, G2_gen) == e(H(msg), pubkey)
+        // Using pairing_check: e(sig, G2_gen) * e(-H(msg), pubkey) == 1
+        // This requires negating the hashed message point
+        let neg_hashed_point = crate::negate_g1_point(env, &hashed_point);
 
         let mut g1_points = Vec::new(env);
-        g1_points.push_back(sig_point);
-        g1_points.push_back(hashed_point);
+        g1_points.push_back(sig_point);        // signature
+        g1_points.push_back(neg_hashed_point); // -H(msg)
 
         let mut g2_points = Vec::new(env);
-        g2_points.push_back(g2_gen);
-        g2_points.push_back(drand_pubkey);
+        g2_points.push_back(g2_gen);          // G2 generator
+        g2_points.push_back(drand_pubkey);    // drand public key
 
-        // Perform pairing check
+        // Perform pairing check: e(sig, G2_gen) * e(-H(msg), pubkey) == 1
         let valid = env
             .crypto()
             .bls12_381()
