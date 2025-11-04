@@ -280,7 +280,13 @@ fn test_bls_verification_infrastructure() {
 
     // Initialize with real drand public key (but we'll use dev_mode for actual testing)
     // Full BLS verification with real drand data is tested in testBLS12381.sh integration test
-    client.initialize(&admin, &xlm_token.address, &10u64, &true, &real_drand_pubkey);
+    client.initialize(
+        &admin,
+        &xlm_token.address,
+        &10u64,
+        &true,
+        &real_drand_pubkey,
+    );
 
     // Verify initialization succeeded with proper 192-byte public key
     assert_eq!(client.admin(), admin);
@@ -313,18 +319,28 @@ fn test_bls_verification_rejects_invalid_signature() {
     );
 
     // Initialize with dev_mode=false to verify signatures
-    client.initialize(&admin, &xlm_token.address, &10u64, &false, &real_drand_pubkey);
+    client.initialize(
+        &admin,
+        &xlm_token.address,
+        &10u64,
+        &false,
+        &real_drand_pubkey,
+    );
 
     // Valid randomness but INVALID signature (all zeros)
     let randomness = Bytes::from_slice(
         &env,
-        &hex::decode("bc63d97d13b2e75eaba08f2b36d4fef5b4c6feca54e18d95c68dae99e21e8f8c")
-            .unwrap(),
+        &hex::decode("bc63d97d13b2e75eaba08f2b36d4fef5b4c6feca54e18d95c68dae99e21e8f8c").unwrap(),
     );
     let invalid_signature = Bytes::from_array(&env, &[0x00; 96]);
 
     // This should panic because the signature is invalid
-    client.submit_entropy(&entropy_submitter, &12345u64, &randomness, &invalid_signature);
+    client.submit_entropy(
+        &entropy_submitter,
+        &12345u64,
+        &randomness,
+        &invalid_signature,
+    );
 }
 
 #[test]
@@ -374,5 +390,10 @@ fn test_malformed_signature_rejection() {
     // Submit with wrong signature length (should be 96 bytes)
     let randomness = Bytes::from_array(&env, &[0x42; 32]);
     let malformed_signature = Bytes::from_array(&env, &[0xaa; 48]); // Only 48 bytes
-    client.submit_entropy(&entropy_submitter, &12345u64, &randomness, &malformed_signature);
+    client.submit_entropy(
+        &entropy_submitter,
+        &12345u64,
+        &randomness,
+        &malformed_signature,
+    );
 }
