@@ -6,6 +6,25 @@ interface CreatureRendererProps {
   size?: number;
 }
 
+// Map gene IDs (0-14) to creature folder names
+const CREATURE_FOLDERS = [
+  "Dark_Oracle_1",
+  "Dark_Oracle_2",
+  "Dark_Oracle_3",
+  "Golem_1",
+  "Golem_2",
+  "Golem_3",
+  "Necromancer_of_the_Shadow_1",
+  "Necromancer_of_the_Shadow_2",
+  "Necromancer_of_the_Shadow_3",
+  "Skeleton_Crusader_1",
+  "Skeleton_Crusader_2",
+  "Skeleton_Crusader_3",
+  "Skeleton_Warrior_1",
+  "Skeleton_Warrior_2",
+  "Skeleton_Warrior_3",
+];
+
 // Inject keyframe animations into the document
 const injectAnimations = () => {
   if (typeof document === "undefined") return;
@@ -16,16 +35,16 @@ const injectAnimations = () => {
   const style = document.createElement("style");
   style.id = styleId;
   style.textContent = `
-    @keyframes bounce-foot-left {
+    @keyframes bounce-leg-left {
       0%, 100% {
-        transform: scaleX(-1) translateY(0px) rotate(0deg);
+        transform: translateY(0px) rotate(0deg);
       }
       50% {
-        transform: scaleX(-1) translateY(-2px) rotate(1deg);
+        transform: translateY(-2px) rotate(1deg);
       }
     }
 
-    @keyframes bounce-foot-right {
+    @keyframes bounce-leg-right {
       0%, 100% {
         transform: translateY(0px) rotate(0deg);
       }
@@ -34,21 +53,21 @@ const injectAnimations = () => {
       }
     }
 
-    @keyframes bounce-arm-left {
-      0%, 100% {
-        transform: scaleX(-1) translateY(0px) rotate(0deg);
-      }
-      50% {
-        transform: scaleX(-1) translateY(-4px) rotate(2deg);
-      }
-    }
-
-    @keyframes bounce-torso {
+    @keyframes bounce-body {
       0%, 100% {
         transform: translateY(0px) rotate(0deg);
       }
       50% {
         transform: translateY(-5px) rotate(-0.3deg);
+      }
+    }
+
+    @keyframes bounce-arm-left {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-4px) rotate(2deg);
       }
     }
 
@@ -61,7 +80,34 @@ const injectAnimations = () => {
       }
     }
 
+    @keyframes bounce-hand-left {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-3px) rotate(3deg);
+      }
+    }
+
+    @keyframes bounce-hand-right {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-3px) rotate(-3deg);
+      }
+    }
+
     @keyframes bounce-head {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-8px) rotate(0.8deg);
+      }
+    }
+
+    @keyframes bounce-face {
       0%, 100% {
         transform: translateY(0px) rotate(0deg);
       }
@@ -75,7 +121,7 @@ const injectAnimations = () => {
 
 // Rarity-based visual effects (CSS filters and overlays)
 const RARITY_EFFECTS = {
-  Common: {
+  Normal: {
     filter: "none",
     overlay: "transparent",
     glow: "0 0 0px transparent",
@@ -95,12 +141,13 @@ const RARITY_EFFECTS = {
 /**
  * CreatureRenderer - Renders creatures using layered PNG assets
  *
- * Asset structure:
- * - public/assets/creatures/heads/head-{0-9}.png
- * - public/assets/creatures/torsos/torso-{0-9}.png
- * - public/assets/creatures/legs/legs-{0-9}.png
+ * Asset structure (creatures2):
+ * - Head gene controls: Head.png, Face 01.png
+ * - Torso gene controls: Body.png, Left Arm.png, Right Arm.png, Left Hand.png, Right Hand.png
+ * - Legs gene controls: Left Leg.png, Right Leg.png
  *
- * Gene IDs are mapped using modulo 10 to select the appropriate asset.
+ * Gene IDs (0-14) map to 15 creature variants.
+ * Layer order (bottom to top): Left Leg, Right Leg, Body, Left Arm, Right Arm, Left Hand, Right Hand, Head, Face
  */
 export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
   creature,
@@ -111,31 +158,30 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
     injectAnimations();
   }, []);
 
-  // Map gene IDs to asset indices (0-9)
-  const headIndex = creature.head_gene.id % 10;
-  const torsoIndex = creature.torso_gene.id % 10;
-  const footIndex = creature.legs_gene.id % 10; // legs_gene controls feet
+  // Get creature folder names based on gene IDs
+  const headFolder = CREATURE_FOLDERS[creature.head_gene.id % 15];
+  const torsoFolder = CREATURE_FOLDERS[creature.torso_gene.id % 15];
+  const legsFolder = CREATURE_FOLDERS[creature.legs_gene.id % 15];
 
-  // Build asset paths
-  const headAsset = `/assets/creatures/heads/head-${headIndex}.png`;
-  const torsoAsset = `/assets/creatures/torsos/torso-${torsoIndex}.png`;
-  const armAsset = `/assets/creatures/arms/arm-${torsoIndex}.png`; // Arms match torso
-  const footAsset = `/assets/creatures/feet/foot-${footIndex}.png`;
+  // Build asset paths for each body part
+  const basePath = "/assets/creatures2";
+  const headAsset = `${basePath}/${headFolder}/Parts/Head.png`;
+  const faceAsset = `${basePath}/${headFolder}/Parts/Face 01.png`;
+  const bodyAsset = `${basePath}/${torsoFolder}/Parts/Body.png`;
+  const leftArmAsset = `${basePath}/${torsoFolder}/Parts/Left Arm.png`;
+  const rightArmAsset = `${basePath}/${torsoFolder}/Parts/Right Arm.png`;
+  const leftHandAsset = `${basePath}/${torsoFolder}/Parts/Left Hand.png`;
+  const rightHandAsset = `${basePath}/${torsoFolder}/Parts/Right Hand.png`;
+  const leftLegAsset = `${basePath}/${legsFolder}/Parts/Left Leg.png`;
+  const rightLegAsset = `${basePath}/${legsFolder}/Parts/Right Leg.png`;
 
-  // Get rarity effects for each body part
+  // Get rarity effects for each body part group
   const headEffects =
-    RARITY_EFFECTS[
-      creature.head_gene.rarity.tag as keyof typeof RARITY_EFFECTS
-    ] || RARITY_EFFECTS.Common;
+    RARITY_EFFECTS[creature.head_gene.rarity.tag] || RARITY_EFFECTS.Normal;
   const torsoEffects =
-    RARITY_EFFECTS[
-      creature.torso_gene.rarity.tag as keyof typeof RARITY_EFFECTS
-    ] || RARITY_EFFECTS.Common;
-  const armEffects = torsoEffects; // Arms inherit torso rarity
-  const footEffects =
-    RARITY_EFFECTS[
-      creature.legs_gene.rarity.tag as keyof typeof RARITY_EFFECTS
-    ] || RARITY_EFFECTS.Common;
+    RARITY_EFFECTS[creature.torso_gene.rarity.tag] || RARITY_EFFECTS.Normal;
+  const legsEffects =
+    RARITY_EFFECTS[creature.legs_gene.rarity.tag] || RARITY_EFFECTS.Normal;
 
   // Calculate overall glow effect (use the highest rarity)
   const rarities = [
@@ -150,7 +196,56 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
     ? RARITY_EFFECTS.Legendary.glow
     : hasRare
       ? RARITY_EFFECTS.Rare.glow
-      : RARITY_EFFECTS.Common.glow;
+      : RARITY_EFFECTS.Normal.glow;
+
+  // Render helper for body part layers
+  const renderBodyPart = (
+    asset: string,
+    alt: string,
+    animation: string,
+    delay: string,
+    effects: typeof RARITY_EFFECTS.Normal,
+  ) => (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        animation: `${animation} 2.8s ease-in-out infinite`,
+        animationDelay: delay,
+      }}
+    >
+      <img
+        src={asset}
+        alt={alt}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          filter: effects.filter,
+        }}
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+      {effects.overlay !== "transparent" && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: effects.overlay,
+            pointerEvents: "none",
+            mixBlendMode: "multiply",
+          }}
+        />
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -161,251 +256,68 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
         filter: `drop-shadow(${containerGlow})`,
       }}
     >
-      {/* Foot left layer (bottom) */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          animation: "bounce-foot-left 2s ease-in-out infinite",
-          animationDelay: "0s",
-        }}
-      >
-        <img
-          src={footAsset}
-          alt={`Foot left ${footIndex}`}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            filter: footEffects.filter,
-          }}
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-        {footEffects.overlay !== "transparent" && (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: footEffects.overlay,
-              pointerEvents: "none",
-              mixBlendMode: "multiply",
-            }}
-          />
-        )}
-      </div>
+      {/* Layer 1: Left Leg (bottom) */}
+      {renderBodyPart(
+        leftLegAsset,
+        "Left Leg",
+        "bounce-leg-left",
+        "0s",
+        legsEffects,
+      )}
 
-      {/* Foot right layer */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          animation: "bounce-foot-right 2s ease-in-out infinite",
-          animationDelay: "0.1s",
-        }}
-      >
-        <img
-          src={footAsset}
-          alt={`Foot right ${footIndex}`}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            filter: footEffects.filter,
-          }}
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-        {footEffects.overlay !== "transparent" && (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: footEffects.overlay,
-              pointerEvents: "none",
-              mixBlendMode: "multiply",
-            }}
-          />
-        )}
-      </div>
+      {/* Layer 2: Right Leg */}
+      {renderBodyPart(
+        rightLegAsset,
+        "Right Leg",
+        "bounce-leg-right",
+        "0.1s",
+        legsEffects,
+      )}
 
-      {/* Arm left layer (behind torso) */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          animation: "bounce-arm-left 2.6s ease-in-out infinite",
-          animationDelay: "0.05s",
-        }}
-      >
-        <img
-          src={armAsset}
-          alt={`Arm left ${torsoIndex}`}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            filter: armEffects.filter,
-          }}
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-        {armEffects.overlay !== "transparent" && (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: armEffects.overlay,
-              pointerEvents: "none",
-              mixBlendMode: "multiply",
-            }}
-          />
-        )}
-      </div>
+      {/* Layer 3: Body */}
+      {renderBodyPart(bodyAsset, "Body", "bounce-body", "0.15s", torsoEffects)}
 
-      {/* Torso layer (middle) */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          animation: "bounce-torso 2.8s ease-in-out infinite",
-          animationDelay: "0.15s",
-        }}
-      >
-        <img
-          src={torsoAsset}
-          alt={`Torso ${torsoIndex}`}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            filter: torsoEffects.filter,
-          }}
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-        {torsoEffects.overlay !== "transparent" && (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: torsoEffects.overlay,
-              pointerEvents: "none",
-              mixBlendMode: "multiply",
-            }}
-          />
-        )}
-      </div>
+      {/* Layer 4: Left Arm */}
+      {renderBodyPart(
+        leftArmAsset,
+        "Left Arm",
+        "bounce-arm-left",
+        "0.05s",
+        torsoEffects,
+      )}
 
-      {/* Arm right layer (in front of torso) */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          animation: "bounce-arm-right 2.6s ease-in-out infinite",
-          animationDelay: "0.2s",
-        }}
-      >
-        <img
-          src={armAsset}
-          alt={`Arm right ${torsoIndex}`}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            filter: armEffects.filter,
-          }}
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-        {armEffects.overlay !== "transparent" && (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: armEffects.overlay,
-              pointerEvents: "none",
-              mixBlendMode: "multiply",
-            }}
-          />
-        )}
-      </div>
+      {/* Layer 5: Right Arm */}
+      {renderBodyPart(
+        rightArmAsset,
+        "Right Arm",
+        "bounce-arm-right",
+        "0.2s",
+        torsoEffects,
+      )}
 
-      {/* Head layer (top) */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          animation: "bounce-head 3.2s ease-in-out infinite",
-          animationDelay: "0.3s",
-        }}
-      >
-        <img
-          src={headAsset}
-          alt={`Head ${headIndex}`}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            filter: headEffects.filter,
-          }}
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-        {headEffects.overlay !== "transparent" && (
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: headEffects.overlay,
-              pointerEvents: "none",
-              mixBlendMode: "multiply",
-            }}
-          />
-        )}
-      </div>
+      {/* Layer 6: Left Hand */}
+      {renderBodyPart(
+        leftHandAsset,
+        "Left Hand",
+        "bounce-hand-left",
+        "0.08s",
+        torsoEffects,
+      )}
+
+      {/* Layer 7: Right Hand */}
+      {renderBodyPart(
+        rightHandAsset,
+        "Right Hand",
+        "bounce-hand-right",
+        "0.25s",
+        torsoEffects,
+      )}
+
+      {/* Layer 8: Head */}
+      {renderBodyPart(headAsset, "Head", "bounce-head", "0.3s", headEffects)}
+
+      {/* Layer 9: Face (top) */}
+      {renderBodyPart(faceAsset, "Face", "bounce-face", "0.3s", headEffects)}
 
       {/* Placeholder when no assets are loaded */}
       <div
@@ -422,7 +334,8 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
       >
         <div>Creature #{creature.id}</div>
         <div style={{ fontSize: "10px", marginTop: "4px" }}>
-          Assets: {headIndex}/{torsoIndex}/{footIndex}
+          Head:{creature.head_gene.id} Torso:{creature.torso_gene.id} Legs:
+          {creature.legs_gene.id}
         </div>
       </div>
     </div>

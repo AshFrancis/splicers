@@ -400,13 +400,13 @@ impl GeneSplicer {
 
         let random_value = (byte1 << 24) | (byte2 << 16) | (byte3 << 8) | byte4;
 
-        // Map to 0-9 gene ID with weighted distribution
-        // 0-5: Normal (60%), 6-8: Rare (30%), 9: Legendary (10%)
-        let gene_id = (random_value % 10) as u32;
+        // Map to 0-14 gene ID with weighted distribution
+        // 0-8: Normal (60%), 9-12: Rare (26.7%), 13-14: Legendary (13.3%)
+        let gene_id = (random_value % 15) as u32;
 
-        let rarity = if gene_id <= 5 {
+        let rarity = if gene_id <= 8 {
             GeneRarity::Normal
-        } else if gene_id <= 8 {
+        } else if gene_id <= 12 {
             GeneRarity::Rare
         } else {
             GeneRarity::Legendary
