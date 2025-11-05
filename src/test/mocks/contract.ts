@@ -31,7 +31,7 @@ export function createMockCreature(overrides?: Partial<Creature>): Creature {
     entropy_round: 12345n,
     finalized_at: BigInt(Date.now()),
     head_gene: createMockGene({ id: 2 }),
-    torso_gene: createMockGene({ id: 4 }),
+    body_gene: createMockGene({ id: 4 }),
     legs_gene: createMockGene({
       id: 7,
       rarity: { tag: "Rare", values: undefined },

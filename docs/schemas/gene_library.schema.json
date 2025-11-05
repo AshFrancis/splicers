@@ -3,12 +3,7 @@
   "title": "Gene Library Manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "version",
-    "name",
-    "slots",
-    "genes"
-  ],
+  "required": ["version", "name", "slots", "genes"],
   "properties": {
     "version": {
       "type": "integer",
@@ -21,11 +16,7 @@
     "slots": {
       "type": "array",
       "items": {
-        "enum": [
-          "head_gene",
-          "torso_gene",
-          "leg_gene"
-        ]
+        "enum": ["head_gene", "body_gene", "leg_gene"]
       },
       "uniqueItems": true
     },

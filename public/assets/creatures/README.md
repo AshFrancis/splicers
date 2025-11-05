@@ -11,11 +11,11 @@ creatures/
 │   ├── head-1.png
 │   ├── ...
 │   └── head-9.png
-├── torsos/
-│   ├── torso-0.png
-│   ├── torso-1.png
+├── bodies/
+│   ├── body-0.png
+│   ├── body-1.png
 │   ├── ...
-│   └── torso-9.png
+│   └── body-9.png
 └── legs/
     ├── legs-0.png
     ├── legs-1.png
@@ -28,7 +28,7 @@ creatures/
 - **Format**: PNG with transparency (RGBA)
 - **Size**: 400x400 pixels (recommended)
 - **Naming**: `{bodypart}-{id}.png` where id is 0-9
-- **Layers**: Assets are layered from bottom to top (legs → torso → head)
+- **Layers**: Assets are layered from bottom to top (legs → body → head)
 
 ## Gene ID Mapping
 
@@ -59,7 +59,7 @@ Each asset should:
 ### Recommended Alignment
 
 - **Heads**: Top 150px of canvas
-- **Torsos**: Middle 200px of canvas
+- **Bodies**: Middle 200px of canvas
 - **Legs**: Bottom 250px of canvas
 
 ## Example File Names
@@ -70,8 +70,8 @@ heads/head-1.png   # Square head
 heads/head-2.png   # Alien head
 ...
 
-torsos/torso-0.png # Standard body
-torsos/torso-1.png # Muscular body
+bodies/body-0.png # Standard body
+bodies/body-1.png # Muscular body
 ...
 
 legs/legs-0.png    # Standard legs

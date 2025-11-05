@@ -80,6 +80,10 @@ export const network: Network = {
 /**
  * Create a Gene Splicer client with a specific public key for write operations.
  * This helper function is needed because the generated contract client is gitignored.
+ *
+ * CRITICAL: Contract ID is read from PUBLIC_GENE_SPLICER_CONTRACT_ID in .env
+ * This MUST be updated after EVERY contract deployment!
+ *
  * @param publicKey - The user's wallet address to use for signing transactions
  * @returns A new Client instance configured with the provided public key
  */
@@ -87,9 +91,15 @@ export async function createGeneSplicerClient(publicKey: string) {
   // Import type at runtime from generated package to avoid gitignored file dependency
   const GeneSplicerModule = await import("gene_splicer");
 
-  // TESTNET CONTRACT ID - hardcoded for testnet deployment
-  const contractId: string =
-    "CA2N3R2NPLA72XR67RMOJK3HALROY7KHPPU5E5BUFKTWVURT6CBVQ5FL";
+  // CRITICAL: Always use environment variable as single source of truth for contract ID
+  // Auto-generated bindings cannot be relied upon for staging/production deployments
+  const contractId = import.meta.env.PUBLIC_GENE_SPLICER_CONTRACT_ID as string;
+
+  if (!contractId) {
+    throw new Error(
+      "PUBLIC_GENE_SPLICER_CONTRACT_ID is not set in .env - cannot create write client",
+    );
+  }
 
   console.log(
     "[createGeneSplicerClient] Write client using contract ID:",

@@ -188,12 +188,12 @@ export const GenomeSplicer: React.FC = () => {
     };
 
     const headRarity = creature.head_gene.rarity.tag.toLowerCase();
-    const torsoRarity = creature.torso_gene.rarity.tag.toLowerCase();
+    const bodyRarity = creature.body_gene.rarity.tag.toLowerCase();
     const legsRarity = creature.legs_gene.rarity.tag.toLowerCase();
 
     return (
       (rarityToPower[headRarity] || 3) +
-      (rarityToPower[torsoRarity] || 3) +
+      (rarityToPower[bodyRarity] || 3) +
       (rarityToPower[legsRarity] || 3)
     );
   };
@@ -618,9 +618,9 @@ export const GenomeSplicer: React.FC = () => {
                           backgroundColor: "var(--gene-card-bg)",
                           borderRadius: "6px",
                           border: `2px solid ${
-                            creature.torso_gene.rarity.tag === "Legendary"
+                            creature.body_gene.rarity.tag === "Legendary"
                               ? "#f59e0b"
-                              : creature.torso_gene.rarity.tag === "Rare"
+                              : creature.body_gene.rarity.tag === "Rare"
                                 ? "#9f7aea"
                                 : "#a0aec0"
                           }`,
@@ -634,7 +634,7 @@ export const GenomeSplicer: React.FC = () => {
                           BODY
                         </Text>
                         <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
-                          #{creature.torso_gene.id}
+                          #{creature.body_gene.id}
                         </Text>
                         <Text
                           as="p"
@@ -645,22 +645,22 @@ export const GenomeSplicer: React.FC = () => {
                             marginBottom: "0.25rem",
                           }}
                         >
-                          {getTraitName(creature.torso_gene.id)}
+                          {getTraitName(creature.body_gene.id)}
                         </Text>
                         <Text
                           as="p"
                           size="sm"
                           style={{
                             color:
-                              creature.torso_gene.rarity.tag === "Legendary"
+                              creature.body_gene.rarity.tag === "Legendary"
                                 ? "#f59e0b"
-                                : creature.torso_gene.rarity.tag === "Rare"
+                                : creature.body_gene.rarity.tag === "Rare"
                                   ? "#9f7aea"
                                   : "#718096",
                             fontWeight: "600",
                           }}
                         >
-                          {creature.torso_gene.rarity.tag}
+                          {creature.body_gene.rarity.tag}
                         </Text>
                       </div>
                       <div

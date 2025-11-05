@@ -81,8 +81,8 @@
       </div>
 
       <div class="section">
-        <h2>Torsos (10 variants)</h2>
-        <div id="torsos" class="assets"></div>
+        <h2>Bodies (10 variants)</h2>
+        <div id="bodies" class="assets"></div>
       </div>
 
       <div class="section">
@@ -99,7 +99,7 @@
 
       function generateAll() {
         generateHeads();
-        generateTorsos();
+        generateBodies();
         generateLegs();
       }
 
@@ -192,8 +192,8 @@
         }
       }
 
-      function generateTorsos() {
-        const container = document.getElementById("torsos");
+      function generateBodies() {
+        const container = document.getElementById("bodies");
         container.innerHTML = "";
 
         for (let i = 0; i < 10; i++) {
@@ -253,8 +253,8 @@
               break;
           }
 
-          addAsset(container, canvas, `torso-${i}`, "torsos");
-          canvases[`torsos/torso-${i}`] = canvas;
+          addAsset(container, canvas, `body-${i}`, "bodies");
+          canvases[`bodies/body-${i}`] = canvas;
         }
       }
 

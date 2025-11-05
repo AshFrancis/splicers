@@ -38,4 +38,4 @@ Maps gene IDs (0-14) to named traits with rarity information.
 - IPFS: Can be pinned to IPFS for permanent, decentralized metadata storage
 - Backend: Used by NFT generation service to create metadata JSON for OpenSea/marketplaces
 
-**Note:** Each creature has three genes (head, torso, legs), each mapped to one of these 15 trait definitions. The actual body part (head/torso/legs) is determined by which gene slot it occupies, not the metadata itself.
+**Note:** Each creature has three genes (head, body, legs), each mapped to one of these 15 trait definitions. The actual body part (head/body/legs) is determined by which gene slot it occupies, not the metadata itself.

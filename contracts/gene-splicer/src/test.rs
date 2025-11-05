@@ -185,7 +185,7 @@ fn test_entropy_and_finalization() {
 
     // Verify genes were assigned (all should be 0-9)
     assert!(creature.head_gene.id < 10);
-    assert!(creature.torso_gene.id < 10);
+    assert!(creature.body_gene.id < 10);
     assert!(creature.legs_gene.id < 10);
 
     // Verify user owns the creature

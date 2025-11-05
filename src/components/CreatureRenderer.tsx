@@ -48,12 +48,12 @@ const injectAnimations = () => {
       }
     }
 
-    @keyframes idle-torso {
+    @keyframes idle-body {
       0%, 100% {
         transform: translateY(0px);
       }
       50% {
-        transform: translateY(var(--torso-y));
+        transform: translateY(var(--body-y));
       }
     }
 
@@ -142,20 +142,20 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
 
   // Get creature folder names based on gene IDs
   const headFolder = CREATURE_FOLDERS[creature.head_gene.id % 15];
-  const torsoFolder = CREATURE_FOLDERS[creature.torso_gene.id % 15];
+  const bodyFolder = CREATURE_FOLDERS[creature.body_gene.id % 15];
   const legsFolder = CREATURE_FOLDERS[creature.legs_gene.id % 15];
 
   // Generate deterministic animation variations based on gene IDs
   const geneSeed =
     creature.head_gene.id +
-    creature.torso_gene.id * 100 +
+    creature.body_gene.id * 100 +
     creature.legs_gene.id * 10000;
 
   // Vary animation parameters (deterministic based on genes)
   const animDuration = generateVariation(geneSeed, 1.0, 1.4);
   const headY = generateVariation(geneSeed + 1, -3, -7);
   const headRotation = generateVariation(geneSeed + 2, -1, -3);
-  const torsoY = generateVariation(geneSeed + 3, -2, -4);
+  const bodyY = generateVariation(geneSeed + 3, -2, -4);
   const armSwing = generateVariation(geneSeed + 4, 6, 10);
 
   // Animation delay for extra variation (some creatures start mid-animation)
@@ -165,11 +165,11 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
   const basePath = "/assets/creatures2";
   const headAsset = `${basePath}/${headFolder}/Parts/Head.png`;
   const faceAsset = `${basePath}/${headFolder}/Parts/Face 01.png`;
-  const bodyAsset = `${basePath}/${torsoFolder}/Parts/Body.png`;
-  const leftArmAsset = `${basePath}/${torsoFolder}/Parts/Left Arm.png`;
-  const rightArmAsset = `${basePath}/${torsoFolder}/Parts/Right Arm.png`;
-  const leftHandAsset = `${basePath}/${torsoFolder}/Parts/Left Hand.png`;
-  const rightHandAsset = `${basePath}/${torsoFolder}/Parts/Right Hand.png`;
+  const bodyAsset = `${basePath}/${bodyFolder}/Parts/Body.png`;
+  const leftArmAsset = `${basePath}/${bodyFolder}/Parts/Left Arm.png`;
+  const rightArmAsset = `${basePath}/${bodyFolder}/Parts/Right Arm.png`;
+  const leftHandAsset = `${basePath}/${bodyFolder}/Parts/Left Hand.png`;
+  const rightHandAsset = `${basePath}/${bodyFolder}/Parts/Right Hand.png`;
   const leftLegAsset = `${basePath}/${legsFolder}/Parts/Left Leg.png`;
   const rightLegAsset = `${basePath}/${legsFolder}/Parts/Right Leg.png`;
 
@@ -334,7 +334,7 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
         // CSS custom properties for animation variation
         ["--head-y" as string]: `${headY}px`,
         ["--head-rotation" as string]: `${headRotation}deg`,
-        ["--torso-y" as string]: `${torsoY}px`,
+        ["--body-y" as string]: `${bodyY}px`,
         ["--arm-swing" as string]: `${armSwing}deg`,
         ["--arm-swing-reverse" as string]: `${-armSwing}deg`,
       }}
@@ -389,7 +389,7 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
             style={{
               animation: isKnockedOut
                 ? "none"
-                : `idle-torso ${animDuration}s ease-in-out ${animDelay}s infinite`,
+                : `idle-body ${animDuration}s ease-in-out ${animDelay}s infinite`,
               width: "100%",
               height: "100%",
               position: "absolute",

@@ -1,14 +1,19 @@
 import * as Client from 'gene_splicer';
 import { rpcUrl, networkPassphrase } from './util';
 
-// TESTNET CONTRACT ID - deployed to Stellar testnet
-const contractId = 'CA2N3R2NPLA72XR67RMOJK3HALROY7KHPPU5E5BUFKTWVURT6CBVQ5FL';
+// CRITICAL: Contract ID must be updated in .env after EVERY deployment!
+// The auto-generated TypeScript bindings cannot be relied upon for staging/production.
+// Always use PUBLIC_GENE_SPLICER_CONTRACT_ID from .env as the single source of truth.
+const contractId = import.meta.env.PUBLIC_GENE_SPLICER_CONTRACT_ID;
+
+if (!contractId) {
+  throw new Error('PUBLIC_GENE_SPLICER_CONTRACT_ID is not set in .env - cannot initialize contract client');
+}
 
 console.log('🔍 Gene Splicer Config:', {
   contractId,
   networkPassphrase,
   rpcUrl,
-  env_var: import.meta.env.PUBLIC_GENE_SPLICER_CONTRACT_ID
 });
 
 export default new Client.Client({

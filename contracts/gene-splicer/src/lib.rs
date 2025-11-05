@@ -43,7 +43,7 @@ pub struct Creature {
     pub owner: Address,
     pub skin_id: u32,       // Inherited from cartridge
     pub head_gene: Gene,    // Head gene (1 of 10)
-    pub torso_gene: Gene,   // Torso gene (1 of 10)
+    pub body_gene: Gene,    // Body gene (1 of 10)
     pub legs_gene: Gene,    // Legs gene (1 of 10)
     pub finalized_at: u64,  // Ledger timestamp of finalization
     pub entropy_round: u64, // Drand round used for gene selection
@@ -78,7 +78,7 @@ pub struct CartridgeMinted {
 pub struct CreatureFinalized {
     pub cartridge_id: u32,
     pub head_gene_id: u32,
-    pub torso_gene_id: u32,
+    pub body_gene_id: u32,
     pub legs_gene_id: u32,
 }
 
@@ -338,7 +338,7 @@ impl GeneSplicer {
 
         // Select genes using verified entropy
         let head_gene = Self::select_gene(&env, &randomness, 0);
-        let torso_gene = Self::select_gene(&env, &randomness, 1);
+        let body_gene = Self::select_gene(&env, &randomness, 1);
         let legs_gene = Self::select_gene(&env, &randomness, 2);
 
         // Create creature
@@ -347,7 +347,7 @@ impl GeneSplicer {
             owner: cartridge.owner.clone(),
             skin_id: cartridge.skin_id,
             head_gene,
-            torso_gene,
+            body_gene,
             legs_gene,
             finalized_at: env.ledger().timestamp(),
             entropy_round: cartridge.splice_round,
@@ -379,7 +379,7 @@ impl GeneSplicer {
         CreatureFinalized {
             cartridge_id,
             head_gene_id: creature.head_gene.id,
-            torso_gene_id: creature.torso_gene.id,
+            body_gene_id: creature.body_gene.id,
             legs_gene_id: creature.legs_gene.id,
         }
         .publish(&env);
@@ -387,7 +387,7 @@ impl GeneSplicer {
         cartridge_id
     }
 
-    /// Helper: Select a gene using entropy bytes and gene slot (0=head, 1=torso, 2=legs)
+    /// Helper: Select a gene using entropy bytes and gene slot (0=head, 1=body, 2=legs)
     fn select_gene(_env: &Env, entropy: &Bytes, slot: u32) -> Gene {
         // Use different entropy bytes for each gene slot
         let offset = (slot * 10) as u32;

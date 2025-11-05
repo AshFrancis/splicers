@@ -55,13 +55,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   // Calculate power level
   const calculatePower = (creature: Creature): number => {
     const rarityToPower: Record<string, number> = {
-      common: 3,
+      normal: 3,
       rare: 6,
       legendary: 10,
     };
     return (
       (rarityToPower[creature.head_gene.rarity.tag.toLowerCase()] || 3) +
-      (rarityToPower[creature.torso_gene.rarity.tag.toLowerCase()] || 3) +
+      (rarityToPower[creature.body_gene.rarity.tag.toLowerCase()] || 3) +
       (rarityToPower[creature.legs_gene.rarity.tag.toLowerCase()] || 3)
     );
   };
@@ -73,23 +73,37 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     const selectedArena = arenas[Math.floor(Math.random() * arenas.length)];
     setArenaImage(`/assets/arenas/${selectedArena}`);
 
-    const randomGeneId = () => Math.floor(Math.random() * 15);
-    const randomRarity = () => {
+    // Generate a random gene with correct rarity based on gene ID
+    // Per spec: Legendary (3-5), Rare (0-2), Normal (6-14)
+    const randomGene = () => {
       const roll = Math.random();
-      if (roll < 0.1)
-        return { tag: "Legendary" as const, values: undefined as never };
-      if (roll < 0.4)
-        return { tag: "Rare" as const, values: undefined as never };
-      return { tag: "Normal" as const, values: undefined as never };
+      let id: number;
+      let rarity: { tag: "Legendary" | "Rare" | "Normal"; values: never };
+
+      if (roll < 0.1) {
+        // Legendary: Golem (gene IDs 3-5)
+        id = 3 + Math.floor(Math.random() * 3);
+        rarity = { tag: "Legendary" as const, values: undefined as never };
+      } else if (roll < 0.4) {
+        // Rare: Dark Oracle (gene IDs 0-2)
+        id = Math.floor(Math.random() * 3);
+        rarity = { tag: "Rare" as const, values: undefined as never };
+      } else {
+        // Normal: Necromancer, Skeleton Crusader, Skeleton Warrior (gene IDs 6-14)
+        id = 6 + Math.floor(Math.random() * 9);
+        rarity = { tag: "Normal" as const, values: undefined as never };
+      }
+
+      return { id, rarity };
     };
 
     const enemy: Creature = {
       id: 999,
       owner: "",
       skin_id: Math.floor(Math.random() * 10),
-      head_gene: { id: randomGeneId(), rarity: randomRarity() },
-      torso_gene: { id: randomGeneId(), rarity: randomRarity() },
-      legs_gene: { id: randomGeneId(), rarity: randomRarity() },
+      head_gene: randomGene(),
+      body_gene: randomGene(),
+      legs_gene: randomGene(),
       entropy_round: BigInt(0),
       finalized_at: BigInt(Date.now()),
     };
@@ -797,6 +811,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       >
         {battle.battleLog.map((log, index) => (
           <Text
+            // eslint-disable-next-line react-x/no-array-index-key
             key={`${index}-${log}`}
             as="p"
             size="sm"

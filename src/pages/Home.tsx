@@ -7,11 +7,12 @@ const Home: React.FC = () => (
   <Layout.Content>
     <Layout.Inset>
       <Text as="h1" size="xl">
-        Gene Splicer
+        Welcome to Splicers
       </Text>
       <Text as="p" size="md">
-        Welcome to Gene Splicer - a Stellar NFT game where you splice gene
-        segments to create unique creatures.
+        The surface world is lost. In subterranean bunkers, survivors fuse genes
+        and print monsters — the ultimate fighters, born to reclaim the world
+        that once was.
       </Text>
 
       <ErrorBoundary>
@@ -28,7 +29,7 @@ const Home: React.FC = () => (
         }}
       >
         <Card variant="primary">
-          <Text as="h3" size="lg">
+          <Text as="h3" size="lg" style={{ marginBottom: "1.5rem" }}>
             How to Play
           </Text>
           <Text as="p" size="md">
@@ -41,7 +42,11 @@ const Home: React.FC = () => (
           </Text>
           <Text as="p" size="md">
             3. <strong>Finalize:</strong> Transform your cartridge into a unique
-            Creature NFT with head, torso, and leg genes
+            Creature NFT with head, body, and leg genes
+          </Text>
+          <Text as="p" size="md">
+            4. <strong>Battle:</strong> Battle your creature against NPCs
+            (player battles coming soon!)
           </Text>
         </Card>
 
@@ -116,7 +121,7 @@ const Home: React.FC = () => (
           </Text>
           <Text as="p" size="md">
             Game specification:{" "}
-            <Code size="md">/docs/specs/gene-splicing-v1.md</Code>
+            <Code size="md">/docs/specs/gene-splicing-v1.1.md</Code>
           </Text>
         </Card>
       </div>

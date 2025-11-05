@@ -43,7 +43,7 @@ Players splice genetic sequences to create unique creatures, each with distinct 
   - **Legendary** (10%): Gene IDs 3-5 (Golem)
   - **Rare** (30%): Gene IDs 0-2 (Dark Oracle)
   - **Normal** (60%): Gene IDs 6-14 (Necromancer, Skeleton Crusader, Skeleton Warrior)
-- Generates 3 genes: `head_gene`, `torso_gene`, `legs_gene`
+- Generates 3 genes: `head_gene`, `body_gene`, `legs_gene`
 - Mints **Creature NFT** with gene data
 - Burns Genome Cartridge NFT
 
@@ -59,7 +59,7 @@ pub struct Creature {
     pub entropy_round: u64,         // Drand round used for finalization
     pub finalized_at: u64,          // Ledger timestamp
     pub head_gene: Gene,
-    pub torso_gene: Gene,
+    pub body_gene: Gene,
     pub legs_gene: Gene,
 }
 
@@ -92,7 +92,7 @@ pub enum GeneRarity {
 ### Visual Assets
 
 - **Location**: `public/assets/creatures/`
-- **Body Parts**: `heads/`, `eyes/`, `faces/`, `torsos/`, `arms/`, `feet/`
+- **Body Parts**: `heads/`, `eyes/`, `faces/`, `bodies/`, `arms/`, `feet/`
 - **Naming**: `{part}-{id}.png` (e.g., `head-0.png` through `head-14.png`)
 - **Rendering**: Client-side PNG layering (6 layers per creature)
 - **Dimensions**: 256x256px per layer (scaled to 512x512px in UI)
@@ -199,13 +199,13 @@ let skin_id = env.prng().gen_range(0..cartridge_skin_count); // 0-9
   ```json
   {
     "name": "Creature #123",
-    "description": "A Legendary Golem fused with Dark Oracle torso",
+    "description": "A Legendary Golem fused with Dark Oracle body",
     "image": "ipfs://QmXxx.../creature-123.png",
     "attributes": [
       { "trait_type": "Head", "value": "Golem Head #3" },
       { "trait_type": "Head Rarity", "value": "Legendary" },
-      { "trait_type": "Torso", "value": "Dark Oracle Torso #1" },
-      { "trait_type": "Torso Rarity", "value": "Rare" },
+      { "trait_type": "Body", "value": "Dark Oracle Body #1" },
+      { "trait_type": "Body Rarity", "value": "Rare" },
       { "trait_type": "Legs", "value": "Necromancer Legs #7" },
       { "trait_type": "Legs Rarity", "value": "Normal" },
       { "trait_type": "Power Level", "value": 145 },
@@ -328,11 +328,11 @@ Each gene has inherent abilities based on creature type and body part.
 - **Necromancer Head (Normal)**: **Death Bolt** - 20 damage (2-turn cooldown)
 - **Skeleton Warrior Head (Normal)**: **Intimidate** - Reduce enemy attack by 10% for 2 turns
 
-**Torso Abilities** (passive):
+**Body Abilities** (passive):
 
-- **Golem Torso (Legendary)**: **Rock Solid** - 30% damage reduction
-- **Dark Oracle Torso (Rare)**: **Void Aura** - Regenerate 5 HP per turn
-- **Skeleton Crusader Torso (Normal)**: **Bone Armor** - 10% damage reduction
+- **Golem Body (Legendary)**: **Rock Solid** - 30% damage reduction
+- **Dark Oracle Body (Rare)**: **Void Aura** - Regenerate 5 HP per turn
+- **Skeleton Crusader Body (Normal)**: **Bone Armor** - 10% damage reduction
 
 **Leg Abilities** (movement/speed):
 
@@ -367,7 +367,7 @@ Each gene has inherent abilities based on creature type and body part.
 
 **Fusion Process**:
 
-1. **Select Fusion Parts**: Choose head from Creature A, torso from Creature B, legs from Creature C
+1. **Select Fusion Parts**: Choose head from Creature A, body from Creature B, legs from Creature C
 2. **Stat Calculation**: New creature inherits average stats + fusion bonus
    - Base Stats: Average of source creatures
    - Fusion Bonus: +10 HP, +5 Attack, +5 Defense per creature sacrificed
@@ -389,14 +389,14 @@ Each gene has inherent abilities based on creature type and body part.
 
 ```
 Sacrifice:
-- Creature #5 (Legendary Golem Head, Rare Torso, Normal Legs)
-- Creature #12 (Rare Head, Normal Torso, Legendary Golem Legs)
-- Creature #23 (Normal Head, Legendary Golem Torso, Rare Legs)
+- Creature #5 (Legendary Golem Head, Rare Body, Normal Legs)
+- Creature #12 (Rare Head, Normal Body, Legendary Golem Legs)
+- Creature #23 (Normal Head, Legendary Golem Body, Rare Legs)
 
 Result:
 - Creature #99 (Generation 2)
   - Head: Legendary Golem (from #5) - Stone Gaze ability
-  - Torso: Legendary Golem (from #23) - Rock Solid passive
+  - Body: Legendary Golem (from #23) - Rock Solid passive
   - Legs: Legendary Golem (from #12) - Earthquake Stomp ability
   - Stats: HP 250, Attack 40, Defense 35, Speed 15
   - Full Golem Set Bonus: +25% all stats
@@ -411,7 +411,7 @@ pub fn fuse_creatures(
     owner: Address,
     creature_ids: Vec<u32>,          // Source creatures
     head_from: u32,                   // Which creature to take head from
-    torso_from: u32,
+    body_from: u32,
     legs_from: u32,
 ) -> u32;  // Returns new creature ID
 ```
@@ -529,7 +529,7 @@ pub fn get_creature_equipment(env: Env, creature_id: u32) -> Equipment;
 
 // Fusion
 pub fn fuse_creatures(env: Env, owner: Address, creature_ids: Vec<u32>,
-                      head_from: u32, torso_from: u32, legs_from: u32) -> u32;
+                      head_from: u32, body_from: u32, legs_from: u32) -> u32;
 
 // Lore tracking
 pub fn unlock_lore(env: Env, creature_id: u32, lore_id: u32);
@@ -873,7 +873,7 @@ The creature rendering system uses layered PNG compositing:
 
 1. **Feet Layer** (`public/assets/creatures/feet/`)
 2. **Arms Layer** (`public/assets/creatures/arms/`)
-3. **Torso Layer** (`public/assets/creatures/torsos/`)
+3. **Body Layer** (`public/assets/creatures/bodies/`)
 4. **Head Layer** (`public/assets/creatures/heads/`)
 5. **Face Layer** (`public/assets/creatures/faces/`)
 6. **Eyes Layer** (`public/assets/creatures/eyes/`)
@@ -887,7 +887,7 @@ Face (expressions)
 ↓
 Head (base structure)
 ↓
-Torso (body)
+Body (body)
 ↓
 Arms (attachments)
 ↓
@@ -915,7 +915,7 @@ Feet (bottom, positioning)
 const layerOffsets = {
   feet: { x: 0, y: 20 }, // Bottom positioning
   arms: { x: 0, y: 10 }, // Mid positioning
-  torso: { x: 0, y: 5 }, // Mid-high positioning
+  body: { x: 0, y: 5 }, // Mid-high positioning
   head: { x: 0, y: -10 }, // Top positioning
   face: { x: 5, y: -8 }, // Slight right offset
   eyes: { x: 6, y: -12 }, // Animated, top layer

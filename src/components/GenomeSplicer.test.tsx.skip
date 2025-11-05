@@ -289,7 +289,7 @@ describe("GenomeSplicer", () => {
           id: 2,
           rarity: { tag: "Common", values: undefined },
         },
-        torso_gene: {
+        body_gene: {
           id: 4,
           rarity: { tag: "Rare", values: undefined },
         },
@@ -316,7 +316,7 @@ describe("GenomeSplicer", () => {
         expect(screen.getByText("Creature #1")).toBeInTheDocument();
         expect(screen.getByText("Skin ID: 5")).toBeInTheDocument();
         expect(screen.getByText("Head #2")).toBeInTheDocument();
-        expect(screen.getByText("Torso #4")).toBeInTheDocument();
+        expect(screen.getByText("Body #4")).toBeInTheDocument();
         expect(screen.getByText("Legs #7")).toBeInTheDocument();
       });
     });

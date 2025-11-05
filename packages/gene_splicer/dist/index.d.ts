@@ -10,9 +10,9 @@ export * from "@stellar/stellar-sdk";
 export * as contract from "@stellar/stellar-sdk/contract";
 export * as rpc from "@stellar/stellar-sdk/rpc";
 export declare const networks: {
-  readonly standalone: {
-    readonly networkPassphrase: "Standalone Network ; February 2017";
-    readonly contractId: "CB7PGTVTZFYMDXDPFIVIQINM6B5E5PQ545Z5OW4X2A6Z3KLI6SFSLHMT";
+  readonly testnet: {
+    readonly networkPassphrase: "Test SDF Network ; September 2015";
+    readonly contractId: "CA2QL6PQBIQON3QOIXM4AFARITJOC4BFZH5BLLDHWK6MTWCPR4WHFN4O";
   };
 };
 /**
@@ -53,6 +53,7 @@ export interface GenomeCartridge {
  * Creature NFT - final form after finalization with entropy
  */
 export interface Creature {
+  body_gene: Gene;
   entropy_round: u64;
   finalized_at: u64;
   head_gene: Gene;
@@ -60,7 +61,6 @@ export interface Creature {
   legs_gene: Gene;
   owner: string;
   skin_id: u32;
-  torso_gene: Gene;
 }
 /**
  * Storage keys for the contract
