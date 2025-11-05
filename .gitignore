@@ -51,3 +51,6 @@ src/contracts/*
 playwright-report/
 test-results/
 .stellar/
+
+# Project documentation for AI assistants
+CLAUDE.md
