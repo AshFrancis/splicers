@@ -795,15 +795,15 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           padding: "1rem",
         }}
       >
-        {battle.battleLog.map((log) => (
+        {battle.battleLog.map((log, index) => (
           <Text
-            key={`${battle.currentRound}-${log}`}
+            key={`${index}-${log}`}
             as="p"
             size="sm"
             style={{
               color: "#fff",
               marginBottom: "0.25rem",
-              opacity: 1 - index * 0.2,
+              opacity: 1 - index * 0.05,
             }}
           >
             {log}

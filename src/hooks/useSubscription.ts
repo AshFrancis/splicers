@@ -68,8 +68,9 @@ export function useSubscription(
           limit: 10,
         };
 
-        // GetEventsRequest requires either cursor OR startLedger, not both
+        // GetEventsRequest requires either cursor OR startLedger+endLedger, not both
         const pagingToken = paging[id].pagingToken;
+        const latestLedger = await server.getLatestLedger();
         const response = pagingToken
           ? await server.getEvents({
               ...baseParams,
@@ -78,6 +79,7 @@ export function useSubscription(
           : await server.getEvents({
               ...baseParams,
               startLedger: paging[id].lastLedgerStart,
+              endLedger: latestLedger.sequence,
             });
 
         paging[id].pagingToken = undefined;
