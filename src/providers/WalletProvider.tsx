@@ -32,18 +32,20 @@ export interface WalletContextType {
   updateBalance: () => Promise<void>;
 }
 
-const initialState = {
-  address: undefined,
-  network: undefined,
-  networkPassphrase: undefined,
-};
-
 const initialBalanceState = {
-  balances: [],
+  balances: [] as Balance[],
   xlm: "-",
   isFunded: false,
   isLoadingBalance: false,
-  balanceError: null,
+  balanceError: null as Error | null,
+};
+
+const initialState: Omit<WalletContextType, "isPending" | "updateBalance"> = {
+  address: undefined,
+  network: undefined,
+  networkPassphrase: undefined,
+  signTransaction: undefined,
+  ...initialBalanceState,
 };
 
 const POLL_INTERVAL = 1000;
@@ -57,8 +59,16 @@ export const WalletContext = // eslint-disable-line react-refresh/only-export-co
 
 export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] =
-    useState<Omit<WalletContextType, "isPending">>(initialState);
-  const [balanceState, setBalanceState] = useState(initialBalanceState);
+    useState<Omit<WalletContextType, "isPending" | "updateBalance">>(
+      initialState,
+    );
+  const [balanceState, setBalanceState] = useState<{
+    balances: Balance[];
+    xlm: string;
+    isFunded: boolean;
+    isLoadingBalance: boolean;
+    balanceError: Error | null;
+  }>(initialBalanceState);
   const [isPending, startTransition] = useTransition();
   const popupLock = useRef(false);
   const signTransaction = wallet.signTransaction.bind(wallet);
@@ -72,14 +82,17 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     storage.setItem("networkPassphrase", "");
   };
 
-  const updateState = (newState: Omit<WalletContextType, "isPending">) => {
-    setState((prev: Omit<WalletContextType, "isPending">) => {
+  const updateState = (
+    newState: Partial<Omit<WalletContextType, "isPending" | "updateBalance">>,
+  ) => {
+    setState((prev) => {
       if (
-        prev.address !== newState.address ||
-        prev.network !== newState.network ||
-        prev.networkPassphrase !== newState.networkPassphrase
+        (newState.address !== undefined && prev.address !== newState.address) ||
+        (newState.network !== undefined && prev.network !== newState.network) ||
+        (newState.networkPassphrase !== undefined &&
+          prev.networkPassphrase !== newState.networkPassphrase)
       ) {
-        return newState;
+        return { ...prev, ...newState };
       }
       return prev;
     });
@@ -202,13 +215,15 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     // Get the wallet address when the component is mounted for the first time
-    startTransition(async () => {
-      await updateCurrentWalletState();
-      // Start polling after initial state is loaded
+    startTransition(() => {
+      void (async () => {
+        await updateCurrentWalletState();
+        // Start polling after initial state is loaded
 
-      if (isMounted) {
-        timer = setTimeout(() => void pollWalletState(), POLL_INTERVAL);
-      }
+        if (isMounted) {
+          timer = setTimeout(() => void pollWalletState(), POLL_INTERVAL);
+        }
+      })();
     });
 
     // Clear the timeout and stop polling when the component unmounts
@@ -216,7 +231,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
       isMounted = false;
       if (timer) clearTimeout(timer);
     };
-  }, [state]); // eslint-disable-line react-hooks/exhaustive-deps -- it SHOULD only run once per component mount
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- it SHOULD only run once per component mount
 
   // Fetch balance when address changes
   useEffect(() => {

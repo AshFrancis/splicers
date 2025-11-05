@@ -87,13 +87,15 @@ export async function createGeneSplicerClient(publicKey: string) {
   // Import type at runtime from generated package to avoid gitignored file dependency
   const GeneSplicerModule = await import("gene_splicer");
 
-  // Use the embedded contract ID from the generated client
-  // The scaffold watch system automatically embeds the latest deployed contract ID
-  const contractId: string = GeneSplicerModule.networks.standalone.contractId;
+  // TESTNET CONTRACT ID - hardcoded for testnet deployment
+  const contractId: string =
+    "CA2N3R2NPLA72XR67RMOJK3HALROY7KHPPU5E5BUFKTWVURT6CBVQ5FL";
 
   console.log(
     "[createGeneSplicerClient] Write client using contract ID:",
     contractId,
+    "Network:",
+    stellarNetwork,
   );
 
   return new GeneSplicerModule.Client({

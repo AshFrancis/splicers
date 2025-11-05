@@ -10,6 +10,7 @@ export function createMockCartridge(
     skin_id: 5,
     splice_round: 12345n,
     finalized: false,
+    created_at: BigInt(Date.now()),
     ...overrides,
   };
 }
@@ -17,7 +18,7 @@ export function createMockCartridge(
 export function createMockGene(overrides?: Partial<Gene>): Gene {
   return {
     id: 3,
-    rarity: { tag: "Common", values: undefined },
+    rarity: { tag: "Normal", values: undefined },
     ...overrides,
   };
 }
@@ -28,6 +29,7 @@ export function createMockCreature(overrides?: Partial<Creature>): Creature {
     owner: "GBZXN7PIRZGNMHGA7MUUUF4GWPY5AYPV6LY4UV2GL6VJGIQRXFDNMADI",
     skin_id: 5,
     entropy_round: 12345n,
+    finalized_at: BigInt(Date.now()),
     head_gene: createMockGene({ id: 2 }),
     torso_gene: createMockGene({ id: 4 }),
     legs_gene: createMockGene({

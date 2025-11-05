@@ -9,6 +9,13 @@ import { rpcUrl, stellarNetwork } from "../contracts/util";
 type PagingKey = string;
 
 /**
+ * Event with pagingToken that exists at runtime but isn't in SDK types
+ */
+interface EventWithPaging extends Api.EventResponse {
+  pagingToken?: string;
+}
+
+/**
  * Paging tokens for each contract/topic pair. These can be mutated directly,
  * rather than being stored as state within the React hook.
  */
@@ -49,20 +56,29 @@ export function useSubscription(
           paging[id].lastLedgerStart = latestLedgerState.sequence;
         }
 
-        const response = await server.getEvents({
-          startLedger: !paging[id].pagingToken
-            ? paging[id].lastLedgerStart
-            : undefined,
-          cursor: paging[id].pagingToken,
+        // Build request params conditionally based on pagination state
+        const baseParams = {
           filters: [
             {
               contractIds: [contractId],
               topics: [[xdr.ScVal.scvSymbol(topic).toXDR("base64")]],
-              type: "contract",
+              type: "contract" as const,
             },
           ],
           limit: 10,
-        });
+        };
+
+        // GetEventsRequest requires either cursor OR startLedger, not both
+        const pagingToken = paging[id].pagingToken;
+        const response = pagingToken
+          ? await server.getEvents({
+              ...baseParams,
+              cursor: pagingToken,
+            })
+          : await server.getEvents({
+              ...baseParams,
+              startLedger: paging[id].lastLedgerStart,
+            });
 
         paging[id].pagingToken = undefined;
         if (response.latestLedger) {
@@ -79,7 +95,7 @@ export function useSubscription(
               );
             } finally {
               paging[id].pagingToken =
-                (event.pagingToken as string | undefined) ?? undefined;
+                (event as EventWithPaging).pagingToken ?? undefined;
             }
           });
         }

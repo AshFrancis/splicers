@@ -14,6 +14,7 @@ export default tseslint.config(
     "packages",
     "src/contracts/*",
     "!src/contracts/util.ts",
+    "scripts/decompressDrandPubkey.ts",
   ]),
   {
     extends: [

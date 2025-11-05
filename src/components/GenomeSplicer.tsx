@@ -450,7 +450,7 @@ export const GenomeSplicer: React.FC = () => {
                       overflow: "hidden",
                     }}
                   >
-                    <CreatureRenderer creature={creature} size={200} />
+                    <CreatureRenderer creature={creature} />
                   </div>
 
                   {/* Creature info */}
@@ -719,6 +719,7 @@ export const GenomeSplicer: React.FC = () => {
                     {/* Battle Button */}
                     <div style={{ marginTop: "1rem" }}>
                       <Button
+                        size="md"
                         variant="primary"
                         onClick={() => setBattleCreature(creature)}
                         style={{

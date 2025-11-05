@@ -84,12 +84,14 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     };
 
     const enemy: Creature = {
-      id: BigInt(999),
+      id: 999,
       owner: "",
       skin_id: Math.floor(Math.random() * 10),
       head_gene: { id: randomGeneId(), rarity: randomRarity() },
       torso_gene: { id: randomGeneId(), rarity: randomRarity() },
       legs_gene: { id: randomGeneId(), rarity: randomRarity() },
+      entropy_round: BigInt(0),
+      finalized_at: BigInt(Date.now()),
     };
 
     setEnemyCreature(enemy);
@@ -793,9 +795,9 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           padding: "1rem",
         }}
       >
-        {battle.battleLog.map((log, index) => (
+        {battle.battleLog.map((log) => (
           <Text
-            key={index}
+            key={`${battle.currentRound}-${log}`}
             as="p"
             size="sm"
             style={{
@@ -858,6 +860,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             {battle.phase === "victory" ? "VICTORY!" : "DEFEAT!"}
           </Text>
           <Button
+            size="md"
             variant="primary"
             onClick={onExit}
             style={{
