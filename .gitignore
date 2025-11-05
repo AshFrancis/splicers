@@ -11,6 +11,8 @@ test_snapshots
 # build output
 dist
 dist-ssr
+# Allow contract package dist
+!packages/gene_splicer/dist/
 
 # dependencies
 node_modules/
@@ -42,6 +44,7 @@ lerna-debug.log*
 packages/*
 # if you have other workspace packages, add them here
 !packages/.gitkeep
+!packages/gene_splicer/
 
 # generated contract client imports
 src/contracts/*
