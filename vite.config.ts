@@ -6,7 +6,6 @@ import { nodePolyfills } from "vite-plugin-node-polyfills";
 // https://vite.dev/config/
 export default defineConfig(() => {
   return {
-    base: "/splicers/",
     plugins: [
       react(),
       nodePolyfills({
