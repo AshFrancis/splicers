@@ -95,6 +95,82 @@ pub enum GeneRarity {
 - **Body Parts**: `heads/`, `eyes/`, `faces/`, `torsos/`, `arms/`, `feet/`
 - **Naming**: `{part}-{id}.png` (e.g., `head-0.png` through `head-14.png`)
 - **Rendering**: Client-side PNG layering (6 layers per creature)
+- **Dimensions**: 256x256px per layer (scaled to 512x512px in UI)
+- **Format**: PNG with transparency (alpha channel)
+- **Art Style**: Pixel art with hand-drawn details, dark fantasy aesthetic
+
+**Current Asset Status**:
+
+- **Placeholder Art**: Initial assets are placeholder/test images
+- **Planned Expansion**: Full original artwork with:
+  - Distinct visual identity per creature type
+  - Rarity-based visual effects (glows, particles, auras)
+  - Animation frames for battle system
+  - High-resolution alternatives for NFT metadata (1024x1024px)
+
+---
+
+## Genome Cartridge Skins System
+
+**Overview**: When a player calls `splice_genome()`, the contract uses Soroban's PRNG to assign a cosmetic skin variant (0-9) to the Genome Cartridge NFT. This skin determines the visual appearance of the cartridge before finalization.
+
+### Skin Selection
+
+**PRNG Mechanism**:
+
+```rust
+// In splice_genome()
+let skin_id = env.prng().gen_range(0..cartridge_skin_count); // 0-9
+```
+
+- **Seed Source**: Soroban's `env.prng()` (ledger-based randomness)
+- **Range**: 0-9 (10 total variants)
+- **Deterministic**: Same seed = same skin (reproducible)
+- **Non-security-critical**: Cosmetic only, does not affect gene rarity
+
+### Skin Variants (Planned)
+
+| Skin ID | Name              | Description                        | Visual Theme           |
+| ------- | ----------------- | ---------------------------------- | ---------------------- |
+| 0       | Rusted Iron       | Standard issue, worn and weathered | Gray/brown tones       |
+| 1       | Crimson Vial      | Blood-infused cartridge            | Deep red, glowing      |
+| 2       | Jade Shard        | Ancient relic from the old world   | Green crystalline      |
+| 3       | Shadow Essence    | Dark matter contained in glass     | Black with purple aura |
+| 4       | Golden Core       | Rare prototype cartridge           | Gold metallic sheen    |
+| 5       | Frost Sealed      | Cryogenic preservation container   | Ice blue, frosted      |
+| 6       | Molten Heart      | Lava-infused genetic material      | Orange/red glow        |
+| 7       | Void Crystal      | Spacetime-warped cartridge         | Purple/black fractal   |
+| 8       | Bio-Luminescent   | Glowing organic material           | Green/cyan biolume     |
+| 9       | Obsidian Monolith | Indestructible dark stone          | Black obsidian         |
+
+**Asset Requirements**:
+
+- **Location**: `public/assets/cartridges/`
+- **Naming**: `cartridge-{skin_id}.png` (e.g., `cartridge-0.png`)
+- **Dimensions**: 200x300px (portrait orientation, vial/cartridge shape)
+- **Format**: PNG with transparency, animated variants (WebP/APNG)
+- **Effects**: Optional particle effects, glow layers, animated gradients
+
+### Skin Persistence
+
+- **Storage**: Skin ID stored in `GenomeCartridge` struct
+- **Transfer**: When cartridge is finalized, skin becomes part of creature metadata
+- **NFT Metadata**: Cartridge skin included in IPFS metadata JSON
+- **UI Display**: Cartridge shown in inventory before finalization with its skin
+
+### Future Enhancements
+
+**Rare Skin Drops**:
+
+- **Legendary Skins** (1% chance): Special animated cartridges with enhanced VFX
+- **Event Skins**: Limited edition cartridges for special occasions
+- **Skin Marketplace**: Trade cartridges for desired skins before finalization
+
+**Skin Effects on Creatures**:
+
+- Cosmetic influence: Creature's color palette slightly influenced by cartridge skin
+- Example: Golden Core cartridge → creature has gold accents in final render
+- Does NOT affect stats or abilities (purely cosmetic)
 
 ---
 
@@ -579,6 +655,311 @@ pub struct PlayerStats {
 - Vitest (unit tests)
 - Playwright (E2E tests)
 - Cargo test (contract tests)
+
+---
+
+## Branding & Visual Design
+
+### Splicers Logo & Identity
+
+**Logo Concept**:
+
+- **Primary Element**: DNA helix intertwined with mechanical gears
+- **Secondary Element**: Broken surface world silhouette above, bunker vault below
+- **Typography**: Bold, industrial sans-serif with distressed edges
+- **Tagline**: "FORGE THE FUTURE, RECLAIM THE SURFACE"
+
+**Logo Variants**:
+
+- **Full Logo**: Complete wordmark + icon (horizontal layout)
+- **Icon Only**: Standalone symbol for favicon, social media
+- **Monochrome**: Single-color version for overlays, watermarks
+- **Animated**: Glitch effect for loading screens, intros
+
+**Color Palette**:
+
+- **Primary**: `#6e56cf` (Electric purple - success highlights)
+- **Secondary**: `#4ade80` (Neon green - success text, accents)
+- **Background**: `#1a1a1a` (Deep black - main background)
+- **Cards**: `#232323` (Dark gray - elevated surfaces)
+- **Borders**: `#333333` (Medium gray - dividers, inputs)
+- **Accent**: `#2a2a2a` (Cartridge background)
+
+**Brand Voice**:
+
+- **Tone**: Dystopian, gritty, survival-focused
+- **Style**: Terse, technical, urgent
+- **Personality**: Authoritative, scientific, slightly ominous
+- **Example Copy**: _"The surface is lost. Your creatures are the key. Splice. Fight. Reclaim."_
+
+### Current Implementation Status
+
+**Page Title & Metadata**:
+
+- **Current Title**: "Scaffold Stellar Starter App" ❌ (needs update)
+- **Target Title**: "Splicers - Gene Splicing NFT Game"
+- **Meta Description**: "Splice genes, forge creatures, and battle for the surface. A Soroban NFT game with verifiable randomness and turn-based combat."
+- **OG Tags**: Social media preview cards with logo + hero creature
+- **Favicon**: Currently generic ❌ (needs custom Splicers icon)
+
+**Recommended Updates**:
+
+```html
+<!-- index.html -->
+<head>
+  <title>Splicers - Gene Splicing NFT Game</title>
+  <meta
+    name="description"
+    content="Splice genes, forge creatures, and battle for the surface. A Soroban NFT game with verifiable randomness and turn-based combat."
+  />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Splicers - Gene Splicing NFT Game" />
+  <meta
+    property="og:description"
+    content="Forge the future. Reclaim the surface."
+  />
+  <meta property="og:image" content="https://splicers.net/og-image.png" />
+  <meta property="og:url" content="https://splicers.net" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Splicers - Gene Splicing NFT Game" />
+  <meta
+    name="twitter:description"
+    content="Splice genes, forge creatures, and battle for the surface."
+  />
+  <meta name="twitter:image" content="https://splicers.net/twitter-card.png" />
+</head>
+```
+
+**Required Assets**:
+
+- `favicon.ico` (32x32px, classic format)
+- `favicon.png` (512x512px, high-res PNG)
+- `apple-touch-icon.png` (180x180px, iOS home screen)
+- `og-image.png` (1200x630px, social preview)
+- `twitter-card.png` (1200x675px, Twitter-optimized)
+
+### UI/UX Design System
+
+**Pixel Art Aesthetic**:
+
+The game uses a retro-futuristic pixel art style combined with modern UI patterns:
+
+**Visual Principles**:
+
+- **No rounded corners**: All elements use `border-radius: 0 !important`
+- **Sharp edges**: Blocky, geometric shapes inspired by 16-bit era
+- **Depth via shadows**: Box shadows create layering (6px offset for cards, 4px for buttons)
+- **Pixel-perfect alignment**: Grid-based spacing (8px increments)
+- **Monospace typography**: `Inconsolata` font for all interactive elements
+
+**Interactive Elements**:
+
+**Buttons**:
+
+```css
+/* Pixel art button style */
+button {
+  border-radius: 0 !important;
+  font-family: "Inconsolata", monospace !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+button:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+button:active {
+  transform: translate(4px, 4px);
+  box-shadow: none; /* "pressed" into surface */
+}
+```
+
+**Cards**:
+
+```css
+/* Pixel art card style */
+[class*="Card"] {
+  border-radius: 0 !important;
+  border: 2px solid var(--sds-clr-border-primary) !important;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4) !important;
+}
+```
+
+**Inputs**:
+
+```css
+/* Pixel art input style */
+input,
+textarea,
+select {
+  border-radius: 0 !important;
+  border: 2px solid var(--sds-clr-border-primary) !important;
+  font-family: "Inconsolata", monospace !important;
+}
+
+input:focus {
+  outline: 2px solid var(--text-primary) !important;
+  outline-offset: 2px !important;
+}
+```
+
+**Animation Patterns**:
+
+- **Sequencing Text**: Wave gradient animation for "Sequencing..." loading state
+- **Battle Effects**: Glitch effects, screen shake, impact flashes
+- **Creature Reveal**: Fade-in with particle burst on finalization
+- **Item Pickup**: Sparkle effect + bounce animation
+
+**Responsive Design**:
+
+- **Minimum Width**: 1000px (enforced in CSS)
+- **Target Resolution**: 1920x1080 (primary design target)
+- **Mobile**: Not optimized (desktop-first game experience)
+
+### Typography
+
+**Font Stack**:
+
+- **Display Font**: `Inter` (variable weight 100-900) - Headings, body text
+- **Code Font**: `Inconsolata` (weight 500) - Buttons, inputs, technical data
+- **Fallback**: `monospace`, `sans-serif`
+
+**Type Scale**:
+
+- **Heading 1**: 2.5rem (40px) - Page titles
+- **Heading 2**: 2rem (32px) - Section headers
+- **Heading 3**: 1.5rem (24px) - Card titles
+- **Body**: 1rem (16px) - Standard text
+- **Small**: 0.875rem (14px) - Captions, metadata
+
+**Usage Guidelines**:
+
+- **ALL CAPS** for buttons, CTAs, emphasis
+- **Sentence case** for body text, descriptions
+- **Letter spacing**: +1px for headings, +0.5px for buttons
+
+### Iconography
+
+**Icon Style**:
+
+- **Line-based**: 2px stroke weight
+- **Pixel-aligned**: Icons snap to 24x24px grid
+- **Monochrome**: Single color, no gradients
+- **Minimalist**: Simplified shapes, high recognition
+
+**Required Icons**:
+
+- Splice icon (DNA helix + syringe)
+- Battle icon (crossed swords)
+- Inventory icon (backpack/container)
+- Settings icon (gear)
+- Wallet icon (currency symbol)
+- Creature icon (skull/monster silhouette)
+- Cartridge icon (vial/capsule)
+
+### Original Creature Artwork (Expanded)
+
+**Current 6-Layer System**:
+
+The creature rendering system uses layered PNG compositing:
+
+1. **Feet Layer** (`public/assets/creatures/feet/`)
+2. **Arms Layer** (`public/assets/creatures/arms/`)
+3. **Torso Layer** (`public/assets/creatures/torsos/`)
+4. **Head Layer** (`public/assets/creatures/heads/`)
+5. **Face Layer** (`public/assets/creatures/faces/`)
+6. **Eyes Layer** (`public/assets/creatures/eyes/`)
+
+**Rendering Order** (bottom to top):
+
+```
+Eyes (top, animated)
+↓
+Face (expressions)
+↓
+Head (base structure)
+↓
+Torso (body)
+↓
+Arms (attachments)
+↓
+Feet (bottom, positioning)
+```
+
+**Asset Specifications**:
+
+**Dimensions**:
+
+- **Canvas Size**: 256x256px (native resolution)
+- **Display Size**: 512x512px (2x upscale, nearest-neighbor filtering)
+- **Export Size**: 1024x1024px (for NFT metadata, high-res)
+
+**Naming Convention**:
+
+- `{layer}-{gene_id}.png`
+- Example: `head-3.png` (Golem head, Legendary)
+- Ensures 1:1 mapping between gene ID and asset file
+
+**Positioning & Offsets**:
+
+```typescript
+// src/components/CreatureDisplay.tsx
+const layerOffsets = {
+  feet: { x: 0, y: 20 }, // Bottom positioning
+  arms: { x: 0, y: 10 }, // Mid positioning
+  torso: { x: 0, y: 5 }, // Mid-high positioning
+  head: { x: 0, y: -10 }, // Top positioning
+  face: { x: 5, y: -8 }, // Slight right offset
+  eyes: { x: 6, y: -12 }, // Animated, top layer
+};
+```
+
+**Placeholder Art vs. Original Art**:
+
+| Aspect             | Current (Placeholder)         | Target (Original)                     |
+| ------------------ | ----------------------------- | ------------------------------------- |
+| **Visual Style**   | Generic pixel sprites         | Unique designs per creature type      |
+| **Rarity Effects** | None                          | Glows, auras, particles for Legendary |
+| **Animation**      | Static images                 | Idle animations, battle frames        |
+| **Color Palette**  | Inconsistent                  | Unified dark fantasy palette          |
+| **Detail Level**   | Minimal                       | Hand-crafted details, textures        |
+| **Variants**       | 15 IDs (5 per type × 3 types) | Same structure + bonus variants       |
+
+**Production Roadmap**:
+
+1. **Phase 1**: Concept art for 5 creature types (Golem, Dark Oracle, Necromancer, Skeleton Crusader, Skeleton Warrior)
+2. **Phase 2**: Pixel art sprites for 15 gene IDs (3 variants per type)
+3. **Phase 3**: Rarity VFX (glow layers, particle systems for Legendary)
+4. **Phase 4**: Animation frames (idle, attack, hurt, death)
+5. **Phase 5**: High-res exports for NFT metadata (1024x1024px)
+
+**Visual Themes by Creature Type**:
+
+- **Golem** (Legendary): Stone texture, glowing runes, massive build
+- **Dark Oracle** (Rare): Ethereal robes, void energy, floating elements
+- **Necromancer** (Normal): Tattered robes, bone staff, green necro-glow
+- **Skeleton Crusader** (Normal): Heavy armor, sword/shield, disciplined
+- **Skeleton Warrior** (Normal): Light armor, dual weapons, aggressive
+
+**VFX Layers for Legendary Creatures**:
+
+- **Glow Layer**: Outer aura (additive blending)
+- **Particle Layer**: Floating embers, energy wisps (animated)
+- **Distortion Layer**: Heat haze, void ripple (shader-based)
+
+**Art Style References**:
+
+- **Pixel Art**: Hyper Light Drifter, Dead Cells, Blasphemous
+- **Dark Fantasy**: Diablo, Dark Souls, Darkest Dungeon
+- **Sci-Fi Elements**: Cyberpunk 2077, Deus Ex, The Ascent
 
 ---
 
