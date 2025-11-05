@@ -78,6 +78,11 @@ select:focus {
   outline-offset: 2px !important;
 }
 
+/* Debugger input container style */
+[class*="Input__container"] {
+  border: 1px solid #333 !important;
+}
+
 /* Header gap override */
 .Layout__header--right {
   gap: 1.5rem !important;
