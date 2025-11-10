@@ -41,7 +41,8 @@ type CreatureData = Creature;
 const CartridgeRow: React.FC<{
   cartridge: CartridgeData;
   onFinalized: () => void;
-}> = React.memo(({ cartridge, onFinalized }) => {
+  onPrintingStart: () => void;
+}> = React.memo(({ cartridge, onFinalized, onPrintingStart }) => {
   const wallet = useWallet();
   const { addNotification } = useNotification();
   const [isClicked, setIsClicked] = useState(false);
@@ -143,6 +144,7 @@ const CartridgeRow: React.FC<{
           variant="primary"
           onClick={() => {
             setIsClicked(true);
+            onPrintingStart();
             finalizeMutation.mutate();
           }}
           disabled={finalizeMutation.isPending || isClicked}
@@ -172,6 +174,8 @@ export const GenomeSplicer: React.FC = () => {
   const [battleCreature, setBattleCreature] = useState<CreatureData | null>(
     null,
   );
+  const [isMinting, setIsMinting] = useState(false);
+  const [isPrintingCreature, setIsPrintingCreature] = useState(false);
 
   // Load gene traits metadata
   useEffect(() => {
@@ -308,11 +312,34 @@ export const GenomeSplicer: React.FC = () => {
     enabled: !!lastMintedId,
   });
 
+  // Clear minting state when cartridge appears in the list
+  useEffect(() => {
+    if (isMinting && lastMintedId && cartridges) {
+      const cartridgeExists = cartridges.some((c) => c.id === lastMintedId);
+      if (cartridgeExists) {
+        setIsMinting(false);
+      }
+    }
+  }, [isMinting, lastMintedId, cartridges]);
+
+  // Clear printing state when a new creature appears
+  useEffect(() => {
+    if (isPrintingCreature && creatures && creatures.length > 0) {
+      // Check if any cartridge was finalized recently
+      const hasFinalized = cartridges?.some((c) => c.finalized);
+      if (hasFinalized) {
+        setIsPrintingCreature(false);
+      }
+    }
+  }, [isPrintingCreature, creatures, cartridges]);
+
   // Mutation for minting
   const mintMutation = useMutation<number, Error>({
     mutationFn: async (): Promise<number> => {
       if (!wallet?.address) throw new Error("Wallet not connected");
       if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
+
+      setIsMinting(true);
 
       // Create client with user's public key for write operations
       const client = await createGeneSplicerClient(wallet.address);
@@ -329,6 +356,9 @@ export const GenomeSplicer: React.FC = () => {
       setLastMintedId(cartridgeId);
       void refetchCartridges();
       void updateBalance(); // Refresh wallet balance after successful mint
+    },
+    onError: () => {
+      setIsMinting(false);
     },
   });
 
@@ -362,7 +392,11 @@ export const GenomeSplicer: React.FC = () => {
             onClick={() => mintMutation.mutate()}
             disabled={mintMutation.isPending}
           >
-            {mintMutation.isPending ? "Minting..." : "Splice Genome (1 XLM)"}
+            {mintMutation.isPending ? (
+              <span className="sequencing-text">Minting...</span>
+            ) : (
+              "Splice Genome (1 XLM)"
+            )}
           </Button>
         </div>
 
@@ -401,30 +435,63 @@ export const GenomeSplicer: React.FC = () => {
         )}
       </Card>
 
-      {cartridges && cartridges.length > 0 && (
+      {(cartridges && cartridges.length > 0) || isMinting ? (
         <Card>
-          <Heading as="h3" size="sm">
-            Your Genome Cartridges ({cartridges.length})
-          </Heading>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <Heading as="h3" size="sm">
+              Your Genome Cartridges ({cartridges?.length || 0})
+            </Heading>
+            {isMinting && (
+              <span
+                className="sequencing-text"
+                style={{ fontSize: "0.875rem" }}
+              >
+                ● Loading...
+              </span>
+            )}
+          </div>
           <div style={{ marginTop: "0.5rem" }}>
-            {cartridges.map((cartridge) => (
+            {cartridges?.map((cartridge) => (
               <CartridgeRow
                 key={cartridge.id}
                 cartridge={cartridge}
                 onFinalized={() => void refetchCartridges()}
+                onPrintingStart={() => setIsPrintingCreature(true)}
               />
             ))}
           </div>
         </Card>
-      )}
+      ) : null}
 
-      {creatures && creatures.length > 0 && (
+      {((creatures && creatures.length > 0) || isPrintingCreature) && (
         <Card>
-          <Heading as="h3" size="sm">
-            Your Creatures ({creatures.length})
-          </Heading>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <Heading as="h3" size="sm">
+              Your Creatures ({creatures?.length || 0})
+            </Heading>
+            {isPrintingCreature && (
+              <span
+                className="sequencing-text"
+                style={{ fontSize: "0.875rem" }}
+              >
+                ● Loading...
+              </span>
+            )}
+          </div>
           <div style={{ marginTop: "0.5rem" }}>
-            {creatures.map((creature) => (
+            {creatures?.map((creature) => (
               <div
                 key={creature.id}
                 style={{
