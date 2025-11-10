@@ -117,7 +117,7 @@ const generateVariation = (seed: number, min: number, max: number): number => {
 /**
  * CreatureRenderer - Renders creatures using layered PNG assets in 3 rows
  *
- * Asset structure (creatures2):
+ * Asset structure:
  * - Head gene controls: Head.png, Face 01.png
  * - Body gene controls: Body.png, Left Arm.png, Right Arm.png, Left Hand.png, Right Hand.png
  * - Legs gene controls: Left Leg.png, Right Leg.png
@@ -162,7 +162,7 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
   const animDelay = generateVariation(geneSeed + 5, -0.6, 0);
 
   // Build asset paths for each body part
-  const basePath = "/assets/creatures2";
+  const basePath = "/assets/creatures";
   const headAsset = `${basePath}/${headFolder}/Parts/Head.png`;
   const faceAsset = `${basePath}/${headFolder}/Parts/Face 01.png`;
   const bodyAsset = `${basePath}/${bodyFolder}/Parts/Body.png`;
