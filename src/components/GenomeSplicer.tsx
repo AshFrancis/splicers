@@ -81,12 +81,8 @@ const CartridgeRow: React.FC<{
         entropy.signature_uncompressed,
       );
 
-      // Compute randomness = SHA256(signature_compressed) for verification
-      const randomnessHash = await crypto.subtle.digest(
-        "SHA-256",
-        signatureCompressedBuffer,
-      );
-      const randomnessBuffer = Buffer.from(randomnessHash);
+      // Use randomness from drand API (SHA256 of compressed signature)
+      const randomnessBuffer = Buffer.from(drandRound.randomness, "hex");
 
       // Create client with user's public key for write operations
       const client = await createGeneSplicerClient(wallet.address);
