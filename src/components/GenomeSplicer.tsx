@@ -102,6 +102,7 @@ const CartridgeRow: React.FC<{
     },
     onSuccess: () => {
       // Don't reset isClicked - keep showing "Printing Creature..." until cartridge.finalized updates
+      onPrintingStart(); // Show loading after transaction is sent
       onFinalized();
     },
     onError: (error) => {
@@ -144,7 +145,6 @@ const CartridgeRow: React.FC<{
           variant="primary"
           onClick={() => {
             setIsClicked(true);
-            onPrintingStart();
             finalizeMutation.mutate();
           }}
           disabled={finalizeMutation.isPending || isClicked}
@@ -339,8 +339,6 @@ export const GenomeSplicer: React.FC = () => {
       if (!wallet?.address) throw new Error("Wallet not connected");
       if (!wallet?.signTransaction) throw new Error("Wallet cannot sign");
 
-      setIsMinting(true);
-
       // Create client with user's public key for write operations
       const client = await createGeneSplicerClient(wallet.address);
       const tx = await client.splice_genome({
@@ -354,6 +352,7 @@ export const GenomeSplicer: React.FC = () => {
     },
     onSuccess: (cartridgeId) => {
       setLastMintedId(cartridgeId);
+      setIsMinting(true); // Show loading after transaction is sent
       void refetchCartridges();
       void updateBalance(); // Refresh wallet balance after successful mint
     },
@@ -441,7 +440,7 @@ export const GenomeSplicer: React.FC = () => {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "0.5rem",
+              justifyContent: "space-between",
             }}
           >
             <Heading as="h3" size="sm">
@@ -452,7 +451,7 @@ export const GenomeSplicer: React.FC = () => {
                 className="sequencing-text"
                 style={{ fontSize: "0.875rem" }}
               >
-                ● Loading...
+                Updating
               </span>
             )}
           </div>
@@ -475,7 +474,7 @@ export const GenomeSplicer: React.FC = () => {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "0.5rem",
+              justifyContent: "space-between",
             }}
           >
             <Heading as="h3" size="sm">
@@ -486,7 +485,7 @@ export const GenomeSplicer: React.FC = () => {
                 className="sequencing-text"
                 style={{ fontSize: "0.875rem" }}
               >
-                ● Loading...
+                Updating
               </span>
             )}
           </div>
