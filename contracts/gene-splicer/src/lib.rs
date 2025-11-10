@@ -354,7 +354,7 @@ impl GeneSplicer {
         // Verify user-provided randomness matches our computed value (defense-in-depth)
         if !dev_mode {
             if randomness != computed_randomness_bytes {
-                panic!("Randomness does not match SHA256(signature) - falsification attempt detected");
+                panic!("Randomness does not match SHA256(signature_compressed) - falsification attempt detected");
             }
         }
 
