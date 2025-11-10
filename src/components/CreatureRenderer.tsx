@@ -8,6 +8,7 @@ interface CreatureRendererProps {
   isAttacking?: boolean;
   attackType?: AttackType;
   isKnockedOut?: boolean;
+  isWalking?: boolean;
 }
 
 // Map gene IDs (0-14) to creature folder names
@@ -102,6 +103,16 @@ const injectAnimations = () => {
       60% { transform: translateY(-15px) rotate(-10deg); }
       100% { transform: translateY(0px) rotate(0deg); }
     }
+
+    @keyframes walk-leg-left {
+      0%, 100% { transform: translate(40px, 0px) rotate(0deg); }
+      50% { transform: translate(40px, 0px) rotate(-15deg); }
+    }
+
+    @keyframes walk-leg-right {
+      0%, 100% { transform: translate(-40px, 0px) rotate(0deg); }
+      50% { transform: translate(-40px, 0px) rotate(15deg); }
+    }
   `;
   document.head.appendChild(style);
 };
@@ -134,6 +145,7 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
   isAttacking = false,
   attackType = null,
   isKnockedOut = false,
+  isWalking = false,
 }) => {
   // Inject animations on mount
   useEffect(() => {
@@ -423,21 +435,52 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
       {/* Row 3: Legs assets */}
       {renderRow(
         <>
-          {/* Right Leg (no animation) */}
-          {renderBodyPart(rightLegAsset, "Right Leg", 1, 0, 0, -40, 0)}
-
-          {/* Left Leg - with kick animation */}
+          {/* Right Leg - with walking animation */}
           <div
             style={{
               position: "absolute",
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
+              transformOrigin: isWalking ? "40px 0px" : undefined,
+              animation: isKnockedOut
+                ? "none"
+                : isWalking
+                  ? "walk-leg-right 0.6s ease-in-out infinite"
+                  : "none",
+              zIndex: 1,
+            }}
+          >
+            <img
+              src={rightLegAsset}
+              alt="Right Leg"
+              style={{
+                display: "block",
+                transform: isWalking
+                  ? "translate(-52px, -55px)"
+                  : "translate(-40px, 0px)",
+              }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          </div>
+
+          {/* Left Leg - with kick and walking animation */}
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              transformOrigin: isWalking ? "-40px 0px" : undefined,
               animation: isKnockedOut
                 ? "none"
                 : isAttacking && attackType === "kick"
                   ? "kick-leg 0.4s ease-out"
-                  : "none",
+                  : isWalking
+                    ? "walk-leg-left 0.6s ease-in-out infinite"
+                    : "none",
               zIndex: 2,
             }}
           >
@@ -446,7 +489,9 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
               alt="Left Leg"
               style={{
                 display: "block",
-                transform: "translate(40px, 0px)",
+                transform: isWalking
+                  ? "translate(-44px, -55px)"
+                  : "translate(40px, 0px)",
               }}
               onError={(e) => {
                 e.currentTarget.style.display = "none";

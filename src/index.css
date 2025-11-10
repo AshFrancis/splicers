@@ -113,3 +113,41 @@ select:focus {
   -webkit-text-fill-color: transparent;
   animation: sequencing-wave 2s linear infinite;
 }
+
+/* Walking animation for creatures */
+@keyframes walking-bob {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.walking-creature {
+  animation: walking-bob 0.6s ease-in-out infinite;
+}
+
+/* Exclamation mark animations */
+@keyframes exclamation-appear {
+  0% {
+    transform: translateX(-50%) scale(0);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes exclamation-fade {
+  0% {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) scale(0.8);
+    opacity: 0;
+  }
+}
