@@ -132,11 +132,18 @@ When you deploy or redeploy contracts, you **must** keep the contract IDs in syn
    cat .config/stellar/contract-ids/gene_splicer.json
    ```
 
-2. **Update your .env file** - Copy the contract ID to your `.env`:
+2. **Update ALL contract ID locations** - Copy the contract ID to:
+   - **`.env` file** (for local development):
 
-   ```bash
-   PUBLIC_GENE_SPLICER_CONTRACT_ID="CCL5G4HRTTBFASEBGJVF4OTLF2K3PWWUNLL3IWYZXI2CZAO4ZFJRHSPX"
-   ```
+     ```bash
+     PUBLIC_GENE_SPLICER_CONTRACT_ID="CCL5G4HRTTBFASEBGJVF4OTLF2K3PWWUNLL3IWYZXI2CZAO4ZFJRHSPX"
+     ```
+
+   - **`.github/workflows/deploy.yml`** (for GitHub Pages deployment):
+     ```yaml
+     env:
+       PUBLIC_GENE_SPLICER_CONTRACT_ID: CCL5G4HRTTBFASEBGJVF4OTLF2K3PWWUNLL3IWYZXI2CZAO4ZFJRHSPX
+     ```
 
 3. **Restart dev server** - The Vite dev server should auto-reload, but if not:
    ```bash
@@ -153,7 +160,10 @@ cat .config/stellar/contract-ids/gene_splicer.json
 # Contract ID in .env
 grep PUBLIC_GENE_SPLICER_CONTRACT_ID .env
 
-# These should match!
+# Contract ID in GitHub Actions workflow
+grep PUBLIC_GENE_SPLICER_CONTRACT_ID .github/workflows/deploy.yml
+
+# These should ALL match!
 ```
 
 **Why this matters:** The frontend reads contract IDs from environment variables. If the `.env` file has an old contract ID but the blockchain has a new one, transactions will succeed in simulation but fail silently on the network, and you won't see any data!
