@@ -12,7 +12,7 @@ export * as rpc from "@stellar/stellar-sdk/rpc";
 export declare const networks: {
   readonly testnet: {
     readonly networkPassphrase: "Test SDF Network ; September 2015";
-    readonly contractId: "CA2QL6PQBIQON3QOIXM4AFARITJOC4BFZH5BLLDHWK6MTWCPR4WHFN4O";
+    readonly contractId: "CDND6UOWUI4OOVTY3ETLKXX6SIEA3OXY6TB3CY2LV54B7SSQAQBFAOG2";
   };
 };
 /**
@@ -295,12 +295,14 @@ export interface Client {
       cartridge_id,
       round,
       randomness,
-      signature,
+      signature_compressed,
+      signature_uncompressed,
     }: {
       cartridge_id: u32;
       round: u64;
       randomness: Buffer;
-      signature: Buffer;
+      signature_compressed: Buffer;
+      signature_uncompressed: Buffer;
     },
     options?: {
       /**

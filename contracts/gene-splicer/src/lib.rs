@@ -3,7 +3,7 @@
 use soroban_sdk::{
     contract, contractevent, contractimpl, contracttype,
     crypto::bls12_381::{G1Affine, G2Affine},
-    token, Address, Bytes, BytesN, Env, Symbol, Vec,
+    token, Address, Bytes, BytesN, Env, Vec,
 };
 
 /// Gene rarity levels (affects visual appearance and value)
@@ -291,8 +291,9 @@ impl GeneSplicer {
         env: Env,
         cartridge_id: u32,
         round: u64,
-        randomness: Bytes,
-        signature: Bytes,
+        randomness: Bytes,             // 32 bytes - user claims this is the randomness (verified)
+        signature_compressed: Bytes,   // 48 bytes - for randomness (matches drand)
+        signature_uncompressed: Bytes, // 96 bytes - for BLS verification
     ) -> u32 {
         // Get cartridge
         let mut cartridge: GenomeCartridge = env
@@ -319,10 +320,19 @@ impl GeneSplicer {
             panic!("Randomness must be 32 bytes");
         }
 
-        // Validate signature is 96 bytes (BLS12-381 G1 point, uncompressed affine coordinates)
-        if signature.len() != 96 {
-            panic!("Signature must be 96 bytes (uncompressed G1 affine coordinates)");
+        // Validate compressed signature is 48 bytes (BLS12-381 G1 point, compressed)
+        if signature_compressed.len() != 48 {
+            panic!("Compressed signature must be 48 bytes");
         }
+
+        // Validate uncompressed signature is 96 bytes (BLS12-381 G1 point, uncompressed affine coordinates)
+        if signature_uncompressed.len() != 96 {
+            panic!("Uncompressed signature must be 96 bytes");
+        }
+
+        // Verify compressed and uncompressed signatures represent the same point
+        // by checking x-coordinates match (compressed bytes 0-47 == uncompressed bytes 0-47, ignoring flag bits)
+        Self::verify_signature_compression(&signature_compressed, &signature_uncompressed);
 
         // Check if dev_mode is enabled
         let dev_mode: bool = env
@@ -331,15 +341,30 @@ impl GeneSplicer {
             .get(&DataKey::DevMode)
             .unwrap_or(false);
 
-        // Verify BLS signature (unless in dev mode)
+        // Verify BLS signature using uncompressed signature (unless in dev mode)
         if !dev_mode {
-            Self::verify_drand_signature(&env, round, &signature);
+            Self::verify_drand_signature(&env, round, &signature_uncompressed);
         }
 
+        // Derive randomness from compressed signature (matches drand's published randomness!)
+        // Drand spec: randomness = SHA256(compressed_signature)
+        let computed_randomness: BytesN<32> = env.crypto().sha256(&signature_compressed).into();
+        let computed_randomness_bytes: Bytes = computed_randomness.into();
+
+        // Verify user-provided randomness matches our computed value (defense-in-depth)
+        if !dev_mode {
+            if randomness != computed_randomness_bytes {
+                panic!("Randomness does not match SHA256(signature) - falsification attempt detected");
+            }
+        }
+
+        // Use computed randomness (not user-provided) for extra safety
+        let verified_randomness = computed_randomness_bytes;
+
         // Select genes using verified entropy
-        let head_gene = Self::select_gene(&env, &randomness, 0);
-        let body_gene = Self::select_gene(&env, &randomness, 1);
-        let legs_gene = Self::select_gene(&env, &randomness, 2);
+        let head_gene = Self::select_gene(&env, &verified_randomness, 0);
+        let body_gene = Self::select_gene(&env, &verified_randomness, 1);
+        let legs_gene = Self::select_gene(&env, &verified_randomness, 2);
 
         // Create creature
         let creature = Creature {
@@ -643,6 +668,39 @@ impl GeneSplicer {
     ///   * G2 pubkey: 96 bytes compressed -> 192 bytes uncompressed (x_c1 || x_c0 || y_c1 || y_c0)
     /// - Pass uncompressed affine coordinates to finalize_splice
     ///
+    /// Verify that compressed and uncompressed signatures represent the same G1 point
+    ///
+    /// Compressed format (48 bytes): flag_byte || x_coordinate[1..47]
+    ///   where flag_byte has: compression_flag (bit 7), infinity_flag (bit 6), y_sign (bit 5)
+    ///
+    /// Uncompressed format (96 bytes): x_coordinate[0..47] || y_coordinate[48..95]
+    ///
+    /// Verification: Extract x from compressed (strip flags) and compare with uncompressed x
+    fn verify_signature_compression(
+        compressed: &Bytes,
+        uncompressed: &Bytes,
+    ) {
+        // Extract x-coordinate from compressed (bytes 0-47, but byte 0 has flag bits in top 3 bits)
+        // We need to mask off the top 3 bits from byte 0
+        let compressed_byte0 = compressed.get(0).unwrap();
+        let compressed_byte0_no_flags = compressed_byte0 & 0x1F; // Mask: 0001_1111
+
+        // Extract x-coordinate from uncompressed (bytes 0-47)
+        let uncompressed_byte0 = uncompressed.get(0).unwrap();
+
+        // Check if byte 0 matches (after removing flags from compressed)
+        if compressed_byte0_no_flags != uncompressed_byte0 {
+            panic!("Signature compression mismatch: byte 0 doesn't match");
+        }
+
+        // Check remaining x-coordinate bytes (1-47)
+        for i in 1..48 {
+            if compressed.get(i).unwrap() != uncompressed.get(i).unwrap() {
+                panic!("Signature compression mismatch: x-coordinate mismatch");
+            }
+        }
+    }
+
     /// CONTRACT RESPONSIBILITIES (this function):
     /// 1. Construct G1Affine from signature bytes (96 bytes uncompressed)
     /// 2. Perform subgroup check on signature

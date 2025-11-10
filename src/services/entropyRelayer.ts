@@ -31,8 +31,9 @@ export interface DrandRound {
 
 export interface UncompressedEntropy {
   round: number;
-  randomness: Uint8Array; // 32 bytes (SHA-256)
-  signature_uncompressed: Uint8Array; // 96 bytes (G1 affine: x || y)
+  randomness: Uint8Array; // 32 bytes (SHA-256) - DEPRECATED: not used by contract
+  signature_compressed: Uint8Array; // 48 bytes (G1 compressed) - for randomness derivation
+  signature_uncompressed: Uint8Array; // 96 bytes (G1 affine: x || y) - for BLS verification
 }
 
 /**
@@ -205,7 +206,8 @@ export function parseAndDecompressEntropy(
 
   return {
     round: drandRound.round,
-    randomness,
+    randomness, // DEPRECATED: contract derives randomness from signature_compressed
+    signature_compressed: signatureCompressed,
     signature_uncompressed: signatureUncompressed,
   };
 }

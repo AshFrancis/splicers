@@ -71,19 +71,31 @@ const CartridgeRow: React.FC<{
       const drandRound = await fetchDrandEntropy(
         Number(cartridge.splice_round),
       );
-      const uncompressed = parseAndDecompressEntropy(drandRound);
+      const entropy = parseAndDecompressEntropy(drandRound);
 
-      // Convert Uint8Array to Buffer for contract (no hex conversion needed)
-      const randomnessBuffer = Buffer.from(uncompressed.randomness);
-      const signatureBuffer = Buffer.from(uncompressed.signature_uncompressed);
+      // Convert Uint8Array to Buffer for contract
+      const signatureCompressedBuffer = Buffer.from(
+        entropy.signature_compressed,
+      );
+      const signatureUncompressedBuffer = Buffer.from(
+        entropy.signature_uncompressed,
+      );
+
+      // Compute randomness = SHA256(signature_compressed) for verification
+      const randomnessHash = await crypto.subtle.digest(
+        "SHA-256",
+        entropy.signature_compressed,
+      );
+      const randomnessBuffer = Buffer.from(randomnessHash);
 
       // Create client with user's public key for write operations
       const client = await createGeneSplicerClient(wallet.address);
       const tx = await client.finalize_splice({
         cartridge_id: cartridge.id,
-        round: BigInt(uncompressed.round),
+        round: BigInt(entropy.round),
         randomness: randomnessBuffer,
-        signature: signatureBuffer,
+        signature_compressed: signatureCompressedBuffer,
+        signature_uncompressed: signatureUncompressedBuffer,
       });
 
       const signed = await tx.signAndSend({

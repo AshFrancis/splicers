@@ -33,7 +33,7 @@ if (typeof window !== "undefined") {
 export const networks = {
   testnet: {
     networkPassphrase: "Test SDF Network ; September 2015",
-    contractId: "CA2QL6PQBIQON3QOIXM4AFARITJOC4BFZH5BLLDHWK6MTWCPR4WHFN4O",
+    contractId: "CDND6UOWUI4OOVTY3ETLKXX6SIEA3OXY6TB3CY2LV54B7SSQAQBFAOG2",
   },
 } as const;
 
@@ -291,8 +291,15 @@ export interface Client {
       cartridge_id,
       round,
       randomness,
-      signature,
-    }: { cartridge_id: u32; round: u64; randomness: Buffer; signature: Buffer },
+      signature_compressed,
+      signature_uncompressed,
+    }: {
+      cartridge_id: u32;
+      round: u64;
+      randomness: Buffer;
+      signature_compressed: Buffer;
+      signature_uncompressed: Buffer;
+    },
     options?: {
       /**
        * The fee to pay for the transaction. Default: BASE_FEE
@@ -468,7 +475,7 @@ export class Client extends ContractClient {
         "AAAAAAAAAC1VcGRhdGUgYWRtaW4gKG9ubHkgY2FsbGFibGUgYnkgY3VycmVudCBhZG1pbikAAAAAAAAJc2V0X2FkbWluAAAAAAAAAQAAAAAAAAAJbmV3X2FkbWluAAAAAAAAEwAAAAA=",
         "AAAAAAAAACdHZXQgbnVtYmVyIG9mIGF2YWlsYWJsZSBjYXJ0cmlkZ2Ugc2tpbnMAAAAADmdldF9za2luX2NvdW50AAAAAAAAAAAAAQAAAAY=",
         "AAAAAAAAACtHZXQgc3RvcmVkIGRyYW5kIHB1YmxpYyBrZXkgKGZvciBkZWJ1Z2dpbmcpAAAAABRnZXRfZHJhbmRfcHVibGljX2tleQAAAAAAAAABAAAADg==",
-        "AAAAAAAAATRGb3JjZSByZWRlcGxveW1lbnQgdXRpbGl0eTogY29tbWVudC91bmNvbW1lbnQgdGhpcyBmdW5jdGlvbiB0byBjaGFuZ2UgV0FTTSBoYXNoClRoaXMgdHJpZ2dlcnMgc2NhZmZvbGQgdG8gcmVkZXBsb3kgYW5kIHJlZ2VuZXJhdGUgVHlwZVNjcmlwdCBiaW5kaW5ncyB3aXRoIG5ldyBjb250cmFjdCBJRApGaW5hbGl6ZSBhIGNhcnRyaWRnZSBpbnRvIGEgQ3JlYXR1cmUgTkZUIHVzaW5nIGRyYW5kIGVudHJvcHkKVXNlciBzdWJtaXRzIGVudHJvcHkgKHJvdW5kLCByYW5kb21uZXNzLCBzaWduYXR1cmUpIHdoaWNoIGlzIHZlcmlmaWVkIGlubGluZQAAAA9maW5hbGl6ZV9zcGxpY2UAAAAABAAAAAAAAAAMY2FydHJpZGdlX2lkAAAABAAAAAAAAAAFcm91bmQAAAAAAAAGAAAAAAAAAApyYW5kb21uZXNzAAAAAAAOAAAAAAAAAAlzaWduYXR1cmUAAAAAAAAOAAAAAQAAAAQ=",
+        "AAAAAAAAATRGb3JjZSByZWRlcGxveW1lbnQgdXRpbGl0eTogY29tbWVudC91bmNvbW1lbnQgdGhpcyBmdW5jdGlvbiB0byBjaGFuZ2UgV0FTTSBoYXNoClRoaXMgdHJpZ2dlcnMgc2NhZmZvbGQgdG8gcmVkZXBsb3kgYW5kIHJlZ2VuZXJhdGUgVHlwZVNjcmlwdCBiaW5kaW5ncyB3aXRoIG5ldyBjb250cmFjdCBJRApGaW5hbGl6ZSBhIGNhcnRyaWRnZSBpbnRvIGEgQ3JlYXR1cmUgTkZUIHVzaW5nIGRyYW5kIGVudHJvcHkKVXNlciBzdWJtaXRzIGVudHJvcHkgKHJvdW5kLCByYW5kb21uZXNzLCBzaWduYXR1cmUpIHdoaWNoIGlzIHZlcmlmaWVkIGlubGluZQAAAA9maW5hbGl6ZV9zcGxpY2UAAAAABQAAAAAAAAAMY2FydHJpZGdlX2lkAAAABAAAAAAAAAAFcm91bmQAAAAAAAAGAAAAAAAAAApyYW5kb21uZXNzAAAAAAAOAAAAAAAAABRzaWduYXR1cmVfY29tcHJlc3NlZAAAAA4AAAAAAAAAFnNpZ25hdHVyZV91bmNvbXByZXNzZWQAAAAAAA4AAAABAAAABA==",
         "AAAAAAAAABdHZXQgY3JlYXR1cmUgZGF0YSBieSBJRAAAAAAMZ2V0X2NyZWF0dXJlAAAAAQAAAAAAAAALY3JlYXR1cmVfaWQAAAAABAAAAAEAAAPoAAAH0AAAAAhDcmVhdHVyZQ==",
         "AAAAAAAAACRHZXQgYWxsIGNyZWF0dXJlIElEcyBvd25lZCBieSBhIHVzZXIAAAASZ2V0X3VzZXJfY3JlYXR1cmVzAAAAAAABAAAAAAAAAAR1c2VyAAAAEwAAAAEAAAPqAAAABA==",
         "AAAAAAAAABtHZXQgY3VycmVudCBkZXYgbW9kZSBzdGF0dXMAAAAADGdldF9kZXZfbW9kZQAAAAAAAAABAAAAAQ==",
