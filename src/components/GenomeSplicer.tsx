@@ -84,7 +84,7 @@ const CartridgeRow: React.FC<{
       // Compute randomness = SHA256(signature_compressed) for verification
       const randomnessHash = await crypto.subtle.digest(
         "SHA-256",
-        entropy.signature_compressed,
+        signatureCompressedBuffer,
       );
       const randomnessBuffer = Buffer.from(randomnessHash);
 
