@@ -9,6 +9,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { GenomeCartridge, Creature } from "gene_splicer";
 import { CreatureRenderer } from "./CreatureRenderer";
 import { BattleArena } from "./BattleArena";
+import { WalkingCreatures } from "./WalkingCreatures";
 import {
   fetchDrandEntropy,
   parseAndDecompressEntropy,
@@ -823,6 +824,11 @@ export const GenomeSplicer: React.FC = () => {
           playerCreature={battleCreature}
           onExit={() => setBattleCreature(null)}
         />
+      )}
+
+      {/* Walking Creatures at bottom of screen */}
+      {creatures && creatures.length > 0 && (
+        <WalkingCreatures creatures={creatures} />
       )}
     </div>
   );
