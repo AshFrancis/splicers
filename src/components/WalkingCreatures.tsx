@@ -71,7 +71,7 @@ export const WalkingCreatures: React.FC<WalkingCreaturesProps> = ({
       };
 
       // Add new creature and make existing creatures react
-      const spawnSide =
+      const spawnSide: "left" | "right" =
         newWalkingCreature.direction === "right" ? "left" : "right";
 
       setWalkingCreatures((prev) => [
@@ -97,11 +97,12 @@ export const WalkingCreatures: React.FC<WalkingCreaturesProps> = ({
     // Initial load - create all creatures off-screen
     const initialized = creatures.map((creature, index) => {
       const spawnFromLeft = index % 2 === 0; // Alternate sides: even indices from left, odd from right
+      const direction: "left" | "right" = spawnFromLeft ? "right" : "left";
       return {
         creature,
         x: spawnFromLeft ? -150 : window.innerWidth + 150, // Spawn just outside window
         y: 0, // At the bottom of container
-        direction: spawnFromLeft ? "right" : "left", // Walk toward center: left side walks right, right side walks left
+        direction, // Walk toward center: left side walks right, right side walks left
         speed: 0.2 + Math.random() * 0.3, // Random speed between 0.2-0.5 px/frame (slower)
         isStopped: false,
         stopTimer: 0,

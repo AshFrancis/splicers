@@ -37,7 +37,7 @@ jobs:
           PUBLIC_STELLAR_NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
           PUBLIC_STELLAR_RPC_URL: https://soroban-testnet.stellar.org
           PUBLIC_STELLAR_HORIZON_URL: https://horizon-testnet.stellar.org
-          PUBLIC_GENE_SPLICER_CONTRACT_ID: CDND6UOWUI4OOVTY3ETLKXX6SIEA3OXY6TB3CY2LV54B7SSQAQBFAOG2
+          PUBLIC_GENE_SPLICER_CONTRACT_ID: CD3QAITSEX3R3WT574RAMGSJGQCSX6CA5M4RDHYW4YFQD46NDRYYNT4U
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
