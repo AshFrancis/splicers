@@ -125,9 +125,19 @@ const CartridgeRow: React.FC<{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
+        gap: "1rem",
       }}
     >
-      <div>
+      <img
+        src={`/assets/cartridges/${cartridge.skin_id}.png`}
+        alt={`Cartridge skin ${cartridge.skin_id}`}
+        style={{
+          width: "51px",
+          height: "68px",
+          objectFit: "contain",
+        }}
+      />
+      <div style={{ flex: 1 }}>
         <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
           Cartridge #{cartridge.id}
         </Text>
@@ -416,21 +426,37 @@ export const GenomeSplicer: React.FC = () => {
               padding: "1rem",
               backgroundColor: "var(--success-bg)",
               borderRadius: "4px",
+              display: "flex",
+              gap: "1rem",
+              alignItems: "center",
             }}
           >
-            <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
-              ✓ Cartridge Minted! ID: {lastMintedId}
-            </Text>
             {cartridgeDetails && (
-              <div style={{ marginTop: "0.5rem" }}>
-                <Text as="p" size="sm">
-                  Skin ID: {cartridgeDetails.skin_id}
-                </Text>
-                <Text as="p" size="sm">
-                  Splice Round: {String(cartridgeDetails.splice_round)}
-                </Text>
-              </div>
+              <img
+                src={`/assets/cartridges/${cartridgeDetails.skin_id}.png`}
+                alt={`Cartridge skin ${cartridgeDetails.skin_id}`}
+                style={{
+                  width: "51px",
+                  height: "68px",
+                  objectFit: "contain",
+                }}
+              />
             )}
+            <div style={{ flex: 1 }}>
+              <Text as="p" size="sm" style={{ fontWeight: "bold" }}>
+                ✓ Cartridge Minted! ID: {lastMintedId}
+              </Text>
+              {cartridgeDetails && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  <Text as="p" size="sm">
+                    Skin ID: {cartridgeDetails.skin_id}
+                  </Text>
+                  <Text as="p" size="sm">
+                    Splice Round: {String(cartridgeDetails.splice_round)}
+                  </Text>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </Card>
