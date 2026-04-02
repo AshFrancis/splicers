@@ -14,6 +14,7 @@ import {
   fetchDrandEntropy,
   parseAndDecompressEntropy,
 } from "../services/entropyRelayer";
+import { DRAND_GENESIS, DRAND_PERIOD } from "../util/drand";
 
 interface GeneTrait {
   id: number;
@@ -49,14 +50,11 @@ const CartridgeRow: React.FC<{
   const [isClicked, setIsClicked] = useState(false);
 
   // Check if the drand round has passed (round is available)
-  // Drand quicknet: genesis = 1692803367, period = 3s
   const { data: roundAvailable } = useQuery<boolean>({
     queryKey: ["drand-round-available", String(cartridge.splice_round)],
     queryFn: (): boolean => {
       const now = Math.floor(Date.now() / 1000);
-      const drandGenesis = 1692803367;
-      const drandPeriod = 3;
-      const currentRound = Math.floor((now - drandGenesis) / drandPeriod) + 1;
+      const currentRound = Math.floor((now - DRAND_GENESIS) / DRAND_PERIOD) + 1;
       return currentRound >= Number(cartridge.splice_round);
     },
     enabled: !cartridge.finalized,
@@ -195,7 +193,7 @@ export const GenomeSplicer: React.FC = () => {
   // Calculate power level based on rarity
   const calculatePowerLevel = (creature: CreatureData) => {
     const rarityToPower: Record<string, number> = {
-      common: 3,
+      normal: 3,
       rare: 6,
       legendary: 10,
     };

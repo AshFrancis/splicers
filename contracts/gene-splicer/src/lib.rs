@@ -1,3 +1,15 @@
+//! Gene Splicer — Soroban NFT game contract
+//!
+//! Players pay 1 XLM to mint a Genome Cartridge with a random skin and an assigned
+//! future drand round. After that round passes, the cartridge can be finalized into
+//! a Creature NFT using verified drand entropy (BLS12-381 signature verification
+//! via CAP-0059). Gene rarity is determined by the verified entropy.
+//!
+//! Security invariants:
+//! - BLS12-381 pairing verification is performed on-chain (cannot be forged)
+//! - Entropy round is assigned at mint time (prevents frontrunning)
+//! - All persistent storage entries have TTL management (prevents expiration)
+
 #![no_std]
 
 use soroban_sdk::{

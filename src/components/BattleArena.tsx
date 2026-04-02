@@ -98,7 +98,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     };
 
     const enemy: Creature = {
-      id: 999,
+      id: 2_147_483_647, // NPC — high ID that won't collide with minted creatures
       owner: "",
       skin_id: Math.floor(Math.random() * 10),
       head_gene: randomGene(),
@@ -120,7 +120,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   useEffect(() => {
     if (battle.phase !== "fighting" || !enemyCreature) {
       // Clear any existing interval and timeout if battle is not in fighting phase
-      console.log(`[BATTLE] Phase is ${battle.phase}, clearing timers`);
       if (battleIntervalRef.current) {
         clearInterval(battleIntervalRef.current);
         battleIntervalRef.current = null;
@@ -132,18 +131,12 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       return;
     }
 
-    console.log(`[BATTLE] Starting battle loop, phase: ${battle.phase}`);
-
     // Clear any existing timers before setting up new ones
     if (battleIntervalRef.current) {
-      console.log(
-        `[BATTLE] Clearing existing interval before creating new one`,
-      );
       clearInterval(battleIntervalRef.current);
       battleIntervalRef.current = null;
     }
     if (enemyAttackTimeoutRef.current) {
-      console.log(`[BATTLE] Clearing existing timeout before creating new one`);
       clearTimeout(enemyAttackTimeoutRef.current);
       enemyAttackTimeoutRef.current = null;
     }
@@ -152,16 +145,12 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
     const enemyPower = calculatePower(enemyCreature);
 
     const executeBattleTurn = () => {
-      console.log(`[BATTLE] executeBattleTurn called`);
-
       // Guard: Prevent concurrent execution
       if (isExecutingTurnRef.current) {
-        console.log(`[BATTLE] Already executing a turn, skipping`);
         return;
       }
 
       isExecutingTurnRef.current = true;
-      console.log(`[BATTLE] Set isExecutingTurnRef to true`);
 
       // Calculate attack type and damage OUTSIDE setState so both executions use same values
       const attackType = getRandomAttackType();
@@ -170,34 +159,19 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
       setBattle((prev) => {
         // Guard: Don't execute if battle is over
         if (prev.phase !== "fighting") {
-          console.log(
-            `[BATTLE] executeBattleTurn called but phase is ${prev.phase}, skipping`,
-          );
           isExecutingTurnRef.current = false;
           return prev;
         }
 
         // Guard: Only execute on player turn
         if (!prev.isPlayerTurn) {
-          console.log(`[BATTLE] Not player turn, skipping`);
           isExecutingTurnRef.current = false;
           return prev;
         }
 
         if (prev.isPlayerTurn) {
-          console.log(`[BATTLE] === PLAYER TURN START ===`);
-          console.log(
-            `[BATTLE] Player HP: ${prev.playerHP}, Enemy HP: ${prev.enemyHP}`,
-          );
-
           // Use pre-calculated attack type and damage
           const newEnemyHP = Math.max(0, prev.enemyHP - playerDamage);
-
-          console.log(
-            `[BATTLE] Player ${attackType} attack deals ${playerDamage} damage`,
-          );
-          console.log(`[BATTLE] Enemy HP: ${prev.enemyHP} -> ${newEnemyHP}`);
-
           const attackVerb =
             attackType === "punch"
               ? "punches"
@@ -211,8 +185,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
 
           // Check if enemy defeated
           if (newEnemyHP <= 0) {
-            console.log(`[BATTLE] VICTORY! Enemy defeated!`);
-            console.log(`[BATTLE] Clearing interval immediately`);
             if (battleIntervalRef.current) {
               clearInterval(battleIntervalRef.current);
               battleIntervalRef.current = null;
@@ -228,9 +200,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
             setTimeout(() => {
               setBattle((prev3) => {
                 if (prev3.phase === "victory") {
-                  console.log(
-                    `[BATTLE] Resetting player to idle after victory`,
-                  );
                   return { ...prev3, playerAttacking: false };
                 }
                 return prev3;
@@ -251,12 +220,9 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
           // Only schedule enemy attack timeout once (React Strict Mode calls this callback twice)
           if (!hasScheduledEnemyAttackRef.current) {
             hasScheduledEnemyAttackRef.current = true;
-            console.log(`[BATTLE] Scheduling enemy attack in 800ms`);
 
             // Schedule enemy attack after delay
             enemyAttackTimeoutRef.current = setTimeout(() => {
-              console.log(`[BATTLE] === ENEMY TURN START ===`);
-
               // Calculate enemy attack type and damage OUTSIDE setState so both executions use same values
               const enemyAttackType = getRandomAttackType();
               const enemyDamage = Math.ceil(
@@ -266,26 +232,10 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
               setBattle((prev2) => {
                 // Guard: Don't execute if battle is over
                 if (prev2.phase !== "fighting") {
-                  console.log(
-                    `[BATTLE] Enemy attack timeout fired but phase is ${prev2.phase}, skipping`,
-                  );
                   return prev2;
                 }
-
-                console.log(
-                  `[BATTLE] Player HP: ${prev2.playerHP}, Enemy HP: ${prev2.enemyHP}`,
-                );
-
                 // Use pre-calculated enemy attack type and damage
                 const newPlayerHP = Math.max(0, prev2.playerHP - enemyDamage);
-
-                console.log(
-                  `[BATTLE] Enemy ${enemyAttackType} attack deals ${enemyDamage} damage`,
-                );
-                console.log(
-                  `[BATTLE] Player HP: ${prev2.playerHP} -> ${newPlayerHP}`,
-                );
-
                 const attackVerb =
                   enemyAttackType === "punch"
                     ? "punches"
@@ -299,8 +249,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
 
                 // Check if player defeated
                 if (newPlayerHP <= 0) {
-                  console.log(`[BATTLE] DEFEAT! Player creature defeated!`);
-                  console.log(`[BATTLE] Clearing interval immediately`);
                   if (battleIntervalRef.current) {
                     clearInterval(battleIntervalRef.current);
                     battleIntervalRef.current = null;
@@ -316,9 +264,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                   setTimeout(() => {
                     setBattle((prev3) => {
                       if (prev3.phase === "defeat") {
-                        console.log(
-                          `[BATTLE] Resetting enemy to idle after victory`,
-                        );
                         return { ...prev3, enemyAttacking: false };
                       }
                       return prev3;
@@ -338,11 +283,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
                     enemyAttackType: enemyAttackType,
                   };
                 }
-
-                console.log(`[BATTLE] === TURN COMPLETE ===\n`);
-                console.log(
-                  `[BATTLE] Resetting isExecutingTurnRef and hasScheduledEnemyAttackRef to false`,
-                );
                 isExecutingTurnRef.current = false;
                 hasScheduledEnemyAttackRef.current = false;
                 return {

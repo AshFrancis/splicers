@@ -1,15 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { CreatureRenderer } from "./CreatureRenderer";
 import type { Creature } from "gene_splicer";
+
+const CREATURE_WIDTH = 60;
+const CREATURE_SCALE = 0.4;
+const CONTAINER_HEIGHT = 83;
+const BOTTOM_OFFSET = 27;
+const JUMP_HEIGHT = 30;
+const INITIAL_NO_TURN_FRAMES = 300;
+const STOP_FRAMES = 60;
 
 interface WalkingCreaturesProps {
   creatures: Creature[];
 }
 
-interface WalkingCreature {
+interface WalkingState {
   creature: Creature;
   x: number;
-  y: number;
   direction: "left" | "right";
   speed: number;
   isStopped: boolean;
@@ -26,292 +33,217 @@ interface WalkingCreature {
 export const WalkingCreatures: React.FC<WalkingCreaturesProps> = ({
   creatures,
 }) => {
-  const [walkingCreatures, setWalkingCreatures] = useState<WalkingCreature[]>(
-    [],
-  );
-  const [previousCreatureCount, setPreviousCreatureCount] = useState(0);
+  // State only for triggering re-renders when creatures are added/removed
+  const [creatureIds, setCreatureIds] = useState<number[]>([]);
+  const stateRef = useRef<WalkingState[]>([]);
+  const domRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const exclamationRefs = useRef<Map<number, HTMLImageElement>>(new Map());
+  const previousCountRef = useRef(0);
 
-  // Initialize walking creatures with random positions
+  // Initialize or update walking creatures
   useEffect(() => {
     if (creatures.length === 0) {
-      setWalkingCreatures([]);
-      setPreviousCreatureCount(0);
+      stateRef.current = [];
+      previousCountRef.current = 0;
+      setCreatureIds([]);
       return;
     }
 
-    // If counts match, nothing to do (prevents re-initialization after updating previousCreatureCount)
-    if (creatures.length === previousCreatureCount) {
-      return;
-    }
+    if (creatures.length === previousCountRef.current) return;
 
-    // Check if this is a new creature being added
     if (
-      creatures.length > previousCreatureCount &&
-      walkingCreatures.length > 0
+      creatures.length > previousCountRef.current &&
+      stateRef.current.length > 0
     ) {
-      // Only add the new creature, don't reinitialize existing ones
+      // Add new creature, make existing ones react
       const newCreature = creatures[creatures.length - 1];
       const spawnFromLeft = Math.random() > 0.5;
+      const spawnSide: "left" | "right" = spawnFromLeft ? "right" : "left";
 
-      const newWalkingCreature: WalkingCreature = {
+      stateRef.current = stateRef.current.map((wc) => ({
+        ...wc,
+        direction: spawnSide === "left" ? "right" : "left",
+        isJumping: true,
+        jumpTimer: 60,
+        showExclamation: true,
+        exclamationTimer: 120,
+        isStopped: true,
+        stopTimer: 90,
+      }));
+
+      stateRef.current.push({
         creature: newCreature,
-        x: spawnFromLeft ? -150 : window.innerWidth + 150, // Spawn off-screen
-        y: 0,
-        direction: spawnFromLeft ? "right" : "left", // Walk toward center
-        speed: 0.8, // Faster entrance
+        x: spawnFromLeft ? -150 : window.innerWidth + 150,
+        direction: spawnFromLeft ? "right" : "left",
+        speed: 0.8,
         isStopped: false,
         stopTimer: 0,
         isJumping: false,
         jumpTimer: 0,
-        speedBoost: true, // Start with speed boost for dramatic entrance
-        speedBoostTimer: 120, // 2 seconds of fast walking
+        speedBoost: true,
+        speedBoostTimer: 120,
         showExclamation: false,
         exclamationTimer: 0,
-        noRandomTurnTimer: 300, // No random turns for first 5 seconds
-      };
-
-      // Add new creature and make existing creatures react
-      const spawnSide: "left" | "right" =
-        newWalkingCreature.direction === "right" ? "left" : "right";
-
-      setWalkingCreatures((prev) => [
-        // Existing creatures react to new arrival
-        ...prev.map((wc) => ({
-          ...wc,
-          direction: spawnSide,
-          isJumping: true,
-          jumpTimer: 60, // Jump for 1 second
-          showExclamation: true,
-          exclamationTimer: 120, // Show exclamation for 2 seconds
-          isStopped: true,
-          stopTimer: 90, // Stay stopped for 1.5 seconds
-        })),
-        // Add new creature at the end
-        newWalkingCreature,
-      ]);
-
-      setPreviousCreatureCount(creatures.length);
-      return;
+        noRandomTurnTimer: INITIAL_NO_TURN_FRAMES,
+      });
+    } else {
+      // Initial load
+      stateRef.current = creatures.map((creature, index) => {
+        const spawnFromLeft = index % 2 === 0;
+        return {
+          creature,
+          x: spawnFromLeft ? -150 : window.innerWidth + 150,
+          direction: (spawnFromLeft ? "right" : "left"),
+          speed: 0.2 + Math.random() * 0.3,
+          isStopped: false,
+          stopTimer: 0,
+          isJumping: false,
+          jumpTimer: 0,
+          speedBoost: true,
+          speedBoostTimer: 180,
+          showExclamation: false,
+          exclamationTimer: 0,
+          noRandomTurnTimer: INITIAL_NO_TURN_FRAMES,
+        };
+      });
     }
 
-    // Initial load - create all creatures off-screen
-    const initialized = creatures.map((creature, index) => {
-      const spawnFromLeft = index % 2 === 0; // Alternate sides: even indices from left, odd from right
-      const direction: "left" | "right" = spawnFromLeft ? "right" : "left";
-      return {
-        creature,
-        x: spawnFromLeft ? -150 : window.innerWidth + 150, // Spawn just outside window
-        y: 0, // At the bottom of container
-        direction, // Walk toward center: left side walks right, right side walks left
-        speed: 0.2 + Math.random() * 0.3, // Random speed between 0.2-0.5 px/frame (slower)
-        isStopped: false,
-        stopTimer: 0,
-        isJumping: false,
-        jumpTimer: 0,
-        speedBoost: true, // Start with speed boost to walk in quickly
-        speedBoostTimer: 180, // 3 seconds of faster walking to get on screen
-        showExclamation: false,
-        exclamationTimer: 0,
-        noRandomTurnTimer: 300, // No random turns for first 5 seconds
-      };
-    });
+    previousCountRef.current = creatures.length;
+    setCreatureIds(stateRef.current.map((wc) => wc.creature.id));
+  }, [creatures]);
 
-    setWalkingCreatures(initialized);
-    setPreviousCreatureCount(creatures.length);
-  }, [creatures, previousCreatureCount]);
-
-  // Animation loop
+  // Animation loop — updates DOM directly via refs, no setState
   useEffect(() => {
-    if (walkingCreatures.length === 0) return;
+    if (creatureIds.length === 0) return;
 
     let animationFrameId: number;
 
     const animate = () => {
-      setWalkingCreatures((prev) =>
-        prev.map((wc) => {
-          let newX = wc.x;
-          let newDirection = wc.direction;
-          let isStopped = wc.isStopped;
-          let stopTimer = wc.stopTimer;
-          let isJumping = wc.isJumping;
-          let jumpTimer = wc.jumpTimer;
-          let speedBoost = wc.speedBoost;
-          let speedBoostTimer = wc.speedBoostTimer;
-          let showExclamation = wc.showExclamation;
-          let exclamationTimer = wc.exclamationTimer;
-          let noRandomTurnTimer = wc.noRandomTurnTimer;
+      for (const wc of stateRef.current) {
+        // Decrement timers
+        if (wc.noRandomTurnTimer > 0) wc.noRandomTurnTimer--;
+        if (wc.isJumping) {
+          wc.jumpTimer--;
+          if (wc.jumpTimer <= 0) wc.isJumping = false;
+        }
+        if (wc.speedBoost) {
+          wc.speedBoostTimer--;
+          if (wc.speedBoostTimer <= 0) wc.speedBoost = false;
+        }
+        if (wc.showExclamation) {
+          wc.exclamationTimer--;
+          if (wc.exclamationTimer <= 0) wc.showExclamation = false;
+        }
 
-          // Handle no random turn timer
-          if (noRandomTurnTimer > 0) {
-            noRandomTurnTimer--;
+        // Handle stopping
+        if (wc.isStopped) {
+          wc.stopTimer--;
+          if (wc.stopTimer <= 0) {
+            wc.direction = wc.direction === "left" ? "right" : "left";
+            wc.isStopped = false;
           }
-
-          // Handle jumping animation
-          if (isJumping) {
-            jumpTimer--;
-            if (jumpTimer <= 0) {
-              isJumping = false;
-            }
-          }
-
-          // Handle speed boost timer
-          if (speedBoost) {
-            speedBoostTimer--;
-            if (speedBoostTimer <= 0) {
-              speedBoost = false;
-            }
-          }
-
-          // Handle exclamation timer
-          if (showExclamation) {
-            exclamationTimer--;
-            if (exclamationTimer <= 0) {
-              showExclamation = false;
-            }
-          }
-
-          // Handle stopping before flip
-          if (isStopped) {
-            stopTimer--;
-            if (stopTimer <= 0) {
-              // Finished stopping, flip direction
-              newDirection = wc.direction === "left" ? "right" : "left";
-              isStopped = false;
-            }
-            return {
-              ...wc,
-              direction: newDirection,
-              isStopped,
-              stopTimer,
-              isJumping,
-              jumpTimer,
-              speedBoost,
-              speedBoostTimer,
-              showExclamation,
-              exclamationTimer,
-              noRandomTurnTimer,
-            };
-          }
-
-          // Random chance to stop and flip direction (0.08% chance per frame) - only after 5 seconds
-          if (noRandomTurnTimer === 0 && Math.random() < 0.0008) {
-            return {
-              ...wc,
-              isStopped: true,
-              stopTimer: 60, // Stop for 60 frames (~1 second)
-              isJumping,
-              jumpTimer,
-              speedBoost,
-              speedBoostTimer,
-              showExclamation,
-              exclamationTimer,
-              noRandomTurnTimer,
-            };
-          }
-
-          // Calculate current speed (with boost if active)
-          const currentSpeed = speedBoost ? wc.speed * 2.5 : wc.speed;
-
-          // Move creature
-          if (wc.direction === "right") {
-            newX += currentSpeed;
-            if (newX > window.innerWidth - 60) {
-              // At right edge, stop and turn around (stay on-screen) - account for 60px width
-              return {
-                ...wc,
-                isStopped: true,
-                stopTimer: 60,
-                isJumping,
-                jumpTimer,
-                speedBoost,
-                speedBoostTimer,
-                showExclamation,
-                exclamationTimer,
-                noRandomTurnTimer,
-              };
-            }
+        } else {
+          // Random stop chance
+          if (wc.noRandomTurnTimer === 0 && Math.random() < 0.0008) {
+            wc.isStopped = true;
+            wc.stopTimer = STOP_FRAMES;
           } else {
-            newX -= currentSpeed;
-            if (newX < 0) {
-              // At left edge, stop and turn around (stay on-screen)
-              return {
-                ...wc,
-                isStopped: true,
-                stopTimer: 60,
-                isJumping,
-                jumpTimer,
-                speedBoost,
-                speedBoostTimer,
-                showExclamation,
-                exclamationTimer,
-                noRandomTurnTimer,
-              };
+            // Move
+            const currentSpeed = wc.speedBoost ? wc.speed * 2.5 : wc.speed;
+            if (wc.direction === "right") {
+              wc.x += currentSpeed;
+              if (wc.x > window.innerWidth - CREATURE_WIDTH) {
+                wc.isStopped = true;
+                wc.stopTimer = STOP_FRAMES;
+              }
+            } else {
+              wc.x -= currentSpeed;
+              if (wc.x < 0) {
+                wc.isStopped = true;
+                wc.stopTimer = STOP_FRAMES;
+              }
             }
           }
+        }
 
-          return {
-            ...wc,
-            x: newX,
-            direction: newDirection,
-            isJumping,
-            jumpTimer,
-            speedBoost,
-            speedBoostTimer,
-            showExclamation,
-            exclamationTimer,
-            noRandomTurnTimer,
-          };
-        }),
-      );
+        // Update DOM directly
+        const el = domRefs.current.get(wc.creature.id);
+        if (el) {
+          el.style.left = `${wc.x}px`;
+          el.style.transform = `scaleX(${wc.direction === "left" ? -1 : 1})`;
+
+          // Update jump on inner wrapper
+          const inner = el.firstElementChild as HTMLElement | null;
+          if (inner) {
+            inner.style.transform = `translateY(${wc.isJumping ? `-${JUMP_HEIGHT}px` : "0px"})`;
+          }
+        }
+
+        // Update exclamation visibility
+        const excEl = exclamationRefs.current.get(wc.creature.id);
+        if (excEl) {
+          excEl.style.display = wc.showExclamation ? "block" : "none";
+          if (wc.showExclamation) {
+            excEl.style.animation =
+              wc.exclamationTimer > 15
+                ? "exclamation-appear 0.15s ease-out forwards"
+                : "exclamation-fade 0.5s ease-out forwards";
+          }
+        }
+      }
 
       animationFrameId = requestAnimationFrame(animate);
     };
 
     animationFrameId = requestAnimationFrame(animate);
-
     return () => cancelAnimationFrame(animationFrameId);
-  }, [walkingCreatures.length]);
+  }, [creatureIds]);
 
-  if (walkingCreatures.length === 0) return null;
+  const handleClick = useCallback((creatureId: number) => {
+    const wc = stateRef.current.find((w) => w.creature.id === creatureId);
+    if (wc) {
+      wc.isJumping = true;
+      wc.jumpTimer = 20;
+      wc.speedBoost = true;
+      wc.speedBoostTimer = 300;
+      wc.showExclamation = true;
+      wc.exclamationTimer = 45;
+    }
+  }, []);
+
+  if (creatureIds.length === 0) return null;
 
   return (
     <div
       style={{
         position: "fixed",
-        bottom: "27px",
+        bottom: `${BOTTOM_OFFSET}px`,
         left: 0,
         width: "100%",
-        height: "83px",
+        height: `${CONTAINER_HEIGHT}px`,
         zIndex: 1000,
         overflow: "visible",
       }}
     >
-      {walkingCreatures.map((wc, index) => (
+      {stateRef.current.map((wc) => (
         <div
           key={wc.creature.id}
-          onClick={() => {
-            setWalkingCreatures((prev) =>
-              prev.map((creature, i) =>
-                i === index
-                  ? {
-                      ...creature,
-                      isJumping: true,
-                      jumpTimer: 20, // Jump for 20 frames (~0.33 seconds)
-                      speedBoost: true,
-                      speedBoostTimer: 300, // Boost for 300 frames (~5 seconds)
-                      showExclamation: true,
-                      exclamationTimer: 45, // Show for 45 frames (~0.75 seconds)
-                    }
-                  : creature,
-              ),
-            );
+          ref={(el) => {
+            if (el) domRefs.current.set(wc.creature.id, el);
+          }}
+          onClick={() => handleClick(wc.creature.id)}
+          role="button"
+          aria-label={`Creature #${wc.creature.id}`}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") handleClick(wc.creature.id);
           }}
           style={{
             position: "absolute",
-            bottom: `${wc.y}px`,
+            bottom: "0px",
             left: `${wc.x}px`,
-            height: "83px",
-            width: "60px",
+            height: `${CONTAINER_HEIGHT}px`,
+            width: `${CREATURE_WIDTH}px`,
             transform: `scaleX(${wc.direction === "left" ? -1 : 1})`,
             cursor: "pointer",
           }}
@@ -323,16 +255,16 @@ export const WalkingCreatures: React.FC<WalkingCreaturesProps> = ({
               display: "flex",
               alignItems: "flex-end",
               justifyContent: "center",
-              transform: `translateY(${wc.isJumping ? "-30px" : "0px"})`,
+              transform: `translateY(${wc.isJumping ? `-${JUMP_HEIGHT}px` : "0px"})`,
               transition: "transform 0.2s ease-out",
               overflow: "visible",
             }}
           >
             <div
               style={{
-                transform: "scale(0.4)",
+                transform: `scale(${CREATURE_SCALE})`,
                 transformOrigin: "center center",
-                height: "83px",
+                height: `${CONTAINER_HEIGHT}px`,
                 justifyContent: "center",
                 position: "relative",
                 overflow: "visible",
@@ -340,27 +272,24 @@ export const WalkingCreatures: React.FC<WalkingCreaturesProps> = ({
             >
               <CreatureRenderer creature={wc.creature} isWalking={true} />
 
-              {/* Exclamation mark */}
-              {wc.showExclamation && (
-                <img
-                  src="/assets/exclamation.png"
-                  alt="!"
-                  style={{
-                    position: "absolute",
-                    top: "-80px",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: "120px",
-                    height: "auto",
-                    pointerEvents: "none",
-                    zIndex: 10000,
-                    animation:
-                      wc.exclamationTimer > 15
-                        ? "exclamation-appear 0.15s ease-out forwards"
-                        : "exclamation-fade 0.5s ease-out forwards",
-                  }}
-                />
-              )}
+              <img
+                ref={(el) => {
+                  if (el) exclamationRefs.current.set(wc.creature.id, el);
+                }}
+                src="/assets/exclamation.png"
+                alt="!"
+                style={{
+                  position: "absolute",
+                  top: "-80px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: "120px",
+                  height: "auto",
+                  pointerEvents: "none",
+                  zIndex: 10000,
+                  display: wc.showExclamation ? "block" : "none",
+                }}
+              />
             </div>
           </div>
         </div>

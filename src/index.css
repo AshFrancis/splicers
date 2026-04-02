@@ -21,10 +21,10 @@ html {
 
 /* Pixel art styling overrides only */
 
-/* Pixel art style - remove all rounded corners */
-*,
-*::before,
-*::after {
+/* Pixel art style - remove rounded corners on game UI elements */
+main *,
+main *::before,
+main *::after {
   border-radius: 0 !important;
 }
 
@@ -149,5 +149,16 @@ select:focus {
   100% {
     transform: translateX(-50%) scale(0.8);
     opacity: 0;
+  }
+}
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
