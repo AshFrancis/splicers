@@ -196,6 +196,7 @@ let skin_id = env.prng().gen_range(0..cartridge_skin_count); // 0-9
 - **Service Worker**: Background worker monitors finalized creatures
 - **Image Generation**: Composite PNG from 6-layer creature assets
 - **Metadata Structure**:
+
   ```json
   {
     "name": "Creature #123",
@@ -387,7 +388,7 @@ Each gene has inherent abilities based on creature type and body part.
 
 **Example Fusion**:
 
-```
+```text
 Sacrifice:
 - Creature #5 (Legendary Golem Head, Rare Body, Normal Legs)
 - Creature #12 (Rare Head, Normal Body, Legendary Golem Legs)
@@ -880,7 +881,7 @@ The creature rendering system uses layered PNG compositing:
 
 **Rendering Order** (bottom to top):
 
-```
+```text
 Eyes (top, animated)
 ↓
 Face (expressions)

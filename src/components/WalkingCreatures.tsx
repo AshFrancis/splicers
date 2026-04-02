@@ -93,7 +93,7 @@ export const WalkingCreatures: React.FC<WalkingCreaturesProps> = ({
         return {
           creature,
           x: spawnFromLeft ? -150 : window.innerWidth + 150,
-          direction: (spawnFromLeft ? "right" : "left"),
+          direction: spawnFromLeft ? "right" : "left",
           speed: 0.2 + Math.random() * 0.3,
           isStopped: false,
           stopTimer: 0,

@@ -118,7 +118,7 @@ stellar contract deploy \
 
 ## Project Structure
 
-```
+```text
 splicers/
 ├── contracts/
 │   └── gene-splicer/            # Main game contract (Rust/Soroban)
@@ -216,7 +216,7 @@ bash scripts/testBLS12381.sh
 
 When you deploy or redeploy contracts, you **must** keep the contract IDs in sync across all config files, otherwise your frontend will fail silently!
 
-### After deploying a contract:
+### After deploying a contract
 
 1. **Check the new contract ID** - After deployment, the contract ID is stored in:
 
@@ -232,18 +232,20 @@ When you deploy or redeploy contracts, you **must** keep the contract IDs in syn
      ```
 
    - **`.github/workflows/deploy.yml`** (for GitHub Pages deployment):
+
      ```yaml
      env:
        PUBLIC_GENE_SPLICER_CONTRACT_ID: CCL5G4HRTTBFASEBGJVF4OTLF2K3PWWUNLL3IWYZXI2CZAO4ZFJRHSPX
      ```
 
 3. **Restart dev server** - The Vite dev server should auto-reload, but if not:
+
    ```bash
    # Stop npm run dev (Ctrl+C) and restart
    npm run dev
    ```
 
-### How to verify everything is synced:
+### How to verify everything is synced
 
 ```bash
 # Contract ID in Stellar config

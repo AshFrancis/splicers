@@ -3,11 +3,7 @@
   "title": "Cartridge Skins Manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "version",
-    "category",
-    "images"
-  ],
+  "required": ["version", "category", "images"],
   "properties": {
     "version": {
       "type": "integer",

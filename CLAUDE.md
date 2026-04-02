@@ -102,7 +102,7 @@ The contract implements full BLS12-381 signature verification using Stellar's CA
 
 **Architecture Overview:**
 
-```
+```text
 ┌─────────────────────┐         ┌──────────────────────────────┐
 │  Drand Quicknet     │         │  Client-Side Relayer         │
 │  (api.drand.sh)     │────────>│  (NON-SECURITY-CRITICAL)     │
@@ -282,11 +282,13 @@ after_deploy = "reset\nother_command"  # Commands to run after deployment
 ⚠️ **The `.env` file is the SINGLE SOURCE OF TRUTH for contract IDs!**
 
 Auto-generated TypeScript bindings in `packages/gene_splicer/` cannot be relied upon for staging/production deployments because:
+
 - `client = true` only works in development environment
 - Staging/production deployments don't regenerate TypeScript bindings
 - Hardcoded IDs in source files become stale after redeployment
 
 **Deployment Workflow:**
+
 1. Build contract: `cargo build --release`
 2. Install WASM: `stellar contract install --wasm target/wasm32v1-none/release/gene_splicer.wasm --network testnet`
 3. Deploy contract: `stellar contract deploy --wasm-hash <hash> --network testnet -- <constructor-args>`
@@ -297,6 +299,7 @@ Auto-generated TypeScript bindings in `packages/gene_splicer/` cannot be relied 
 6. Hard refresh browser: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows/Linux)
 
 **Contract ID is used in:**
+
 - `.env` - Local development contract ID (gitignored)
 - `.github/workflows/deploy.yml` - GitHub Pages deployment contract ID (line 40)
 - `src/contracts/gene_splicer.ts` - Read operations (queries)
@@ -340,7 +343,7 @@ tag = "v0.5.1"
 
 ### Frontend Structure
 
-```
+```text
 src/
 ├── components/          # UI components (wallet, contracts, layout)
 ├── contracts/
@@ -461,7 +464,6 @@ rm -rf .stellar packages/contract_name node_modules/.vite
 # Restart dev server - scaffold will deploy fresh
 npm run dev
 ```
-
 
 ### Future Development: NFT Image Generation & Pinning
 
