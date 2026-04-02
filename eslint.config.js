@@ -12,6 +12,7 @@ export default tseslint.config(
   globalIgnores([
     "dist",
     "packages",
+    "server",
     "src/contracts/*",
     "!src/contracts/util.ts",
     "scripts/decompressDrandPubkey.ts",

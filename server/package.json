@@ -1,0 +1,12 @@
+{
+  "name": "splicers-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun run index.ts",
+    "dev": "bun --watch run index.ts"
+  },
+  "dependencies": {
+    "pinata": "^1.5.0"
+  }
+}
