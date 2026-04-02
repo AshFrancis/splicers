@@ -567,3 +567,136 @@ fn test_set_drand_public_key_wrong_length() {
     let bad_key = Bytes::from_array(&env, &[0xff; 96]);
     client.set_drand_public_key(&bad_key);
 }
+
+// ===== Real BLS12-381 verification test =====
+
+/// Real drand quicknet public key (192 bytes uncompressed G2, CAP-0059 byte order)
+fn real_drand_pubkey(env: &Env) -> Bytes {
+    Bytes::from_slice(
+        env,
+        &hex::decode(
+            "03cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a01a714f2edb74119a2f2b0d5a7c75ba902d163700a61bc224ededd8e63aef7be1aaf8e93d7a9718b047ccddb3eb5d68b0e5db2b6bfbb01c867749cadffca88b36c24f3012ba09fc4d3022c5c37dce0f977d3adb5d183c7477c442b1f04515273"
+        ).unwrap(),
+    )
+}
+
+#[test]
+fn test_real_bls_verification() {
+    // Test with real drand quicknet round 27448023
+    // This verifies the full BLS12-381 pairing check with authentic drand data
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let xlm_token = create_xlm_token(&env, &admin);
+    xlm_token.mint(&user, &100_000_000);
+
+    // Deploy with real drand pubkey and dev_mode=false for real verification
+    let pubkey = real_drand_pubkey(&env);
+    let contract_id = env.register(
+        GeneSplicer,
+        (&admin, &xlm_token.address, 10u64, false, pubkey),
+    );
+    let client = GeneSplicerClient::new(&env, &contract_id);
+
+    // Mint a cartridge
+    let cartridge_id = client.splice_genome(&user);
+    let mut cartridge = client.get_cartridge(&cartridge_id).unwrap();
+
+    // Override splice_round to match our real drand data (round 27448023)
+    // In a real scenario the round would be assigned by the contract based on ledger time.
+    // For testing we need to match the round to the drand data we have.
+    cartridge.splice_round = 27448023;
+    env.as_contract(&contract_id, || {
+        env.storage().persistent().set(
+            &crate::DataKey::Cartridge(cartridge_id),
+            &cartridge,
+        );
+    });
+
+    // Real drand round 27448023 data:
+    let randomness = Bytes::from_slice(
+        &env,
+        &hex::decode("f22d19a3d8cd3a181fe8155d051fe006a726b1fe0b18043bda3a2fe4c6c1e5d8").unwrap(),
+    );
+    let sig_compressed = Bytes::from_slice(
+        &env,
+        &hex::decode("967e8a7aa839aa8f672800bb50b1ee29dfa4757d120112c7b858b1f625193a41fb156ad7c69fefc644b9719f88d60313").unwrap(),
+    );
+    let sig_uncompressed = Bytes::from_slice(
+        &env,
+        &hex::decode("167e8a7aa839aa8f672800bb50b1ee29dfa4757d120112c7b858b1f625193a41fb156ad7c69fefc644b9719f88d603130165791da033fb75626a46b01aeb3e1207d87423db1b5de2dabeb60ee4cc227f750d10de8ec1f77dedd4f311586e5c3e").unwrap(),
+    );
+
+    // This performs REAL BLS12-381 pairing verification on-chain
+    let creature_id = client.finalize_splice(
+        &cartridge_id,
+        &27448023u64,
+        &randomness,
+        &sig_compressed,
+        &sig_uncompressed,
+    );
+
+    assert_eq!(creature_id, cartridge_id);
+
+    // Verify creature was created with genes derived from real entropy
+    let creature = client.get_creature(&creature_id).unwrap();
+    assert!(creature.head_gene.id <= 14);
+    assert!(creature.body_gene.id <= 14);
+    assert!(creature.legs_gene.id <= 14);
+}
+
+#[test]
+#[should_panic]
+fn test_real_bls_rejects_invalid_signature() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let xlm_token = create_xlm_token(&env, &admin);
+    xlm_token.mint(&user, &100_000_000);
+
+    // Deploy with real drand pubkey and dev_mode=false
+    let pubkey = real_drand_pubkey(&env);
+    let contract_id = env.register(
+        GeneSplicer,
+        (&admin, &xlm_token.address, 10u64, false, pubkey),
+    );
+    let client = GeneSplicerClient::new(&env, &contract_id);
+
+    let cartridge_id = client.splice_genome(&user);
+    let mut cartridge = client.get_cartridge(&cartridge_id).unwrap();
+    cartridge.splice_round = 27448023;
+    env.as_contract(&contract_id, || {
+        env.storage().persistent().set(
+            &crate::DataKey::Cartridge(cartridge_id),
+            &cartridge,
+        );
+    });
+
+    // Valid format but WRONG signature data (all 0x11)
+    let randomness = Bytes::from_array(&env, &[0x42; 32]);
+    // Build a fake compressed sig that matches fake uncompressed x-coord
+    let mut fake_compressed = [0x11_u8; 48];
+    fake_compressed[0] = 0x80 | 0x11; // Set compression flag
+    let mut fake_uncompressed = [0x22_u8; 96];
+    fake_uncompressed[0] = 0x11; // Match x-coord byte 0
+    for i in 1..48 {
+        fake_uncompressed[i] = 0x11; // Match x-coord
+    }
+    let sig_compressed = Bytes::from_array(&env, &fake_compressed);
+    let sig_uncompressed = Bytes::from_array(&env, &fake_uncompressed);
+
+    // Should panic during BLS verification (invalid signature)
+    client.finalize_splice(
+        &cartridge_id,
+        &27448023u64,
+        &randomness,
+        &sig_compressed,
+        &sig_uncompressed,
+    );
+}

@@ -3,7 +3,7 @@
 ## Running Tests
 
 ```bash
-# Contract tests (Rust — 19 tests)
+# Contract tests (Rust — 21 tests)
 cargo test
 
 # Frontend tests (TypeScript — 33 tests)
@@ -18,17 +18,16 @@ bash scripts/testBLS12381.sh
 
 ## Test Coverage
 
-### Contract Tests (`contracts/gene-splicer/src/test.rs`) — 19 tests
+### Contract Tests (`contracts/gene-splicer/src/test.rs`) — 21 tests
 
 - **Minting**: splice_genome, multiple splices, insufficient balance
 - **Finalization**: finalize_splice with mock entropy (dev_mode), double finalization, wrong round, nonexistent cartridge
 - **Input validation**: wrong randomness length, wrong compressed sig length, wrong uncompressed sig length
 - **Batch queries**: get_cartridges_batch (with missing IDs), get_creatures_batch
 - **Admin**: admin getter/setter, config getters, set_skin_count, set_drand_public_key (valid + invalid length)
+- **BLS12-381**: Real drand signature verification with dev_mode=false (round 27448023), invalid signature rejection
 - **TTL**: extend_ttl permissionless call
 - **Constructor**: rejects wrong pubkey length
-
-Tests use `dev_mode=true` to skip BLS verification. Full BLS verification is tested via `scripts/testBLS12381.sh` with live drand data against a deployed contract.
 
 ### Frontend Tests — 33 tests across 5 files
 
