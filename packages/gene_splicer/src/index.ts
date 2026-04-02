@@ -30,13 +30,6 @@ if (typeof window !== "undefined") {
   window.Buffer = window.Buffer || Buffer;
 }
 
-export const networks = {
-  testnet: {
-    networkPassphrase: "Test SDF Network ; September 2015",
-    contractId: "CDND6UOWUI4OOVTY3ETLKXX6SIEA3OXY6TB3CY2LV54B7SSQAQBFAOG2",
-  },
-} as const;
-
 /**
  * Gene rarity levels (affects visual appearance and value)
  */
@@ -105,22 +98,7 @@ export interface Client {
    */
   splice_genome: (
     { user }: { user: string },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<u32>>;
 
   /**
@@ -129,23 +107,17 @@ export interface Client {
    */
   get_cartridge: (
     { cartridge_id }: { cartridge_id: u32 },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<Option<GenomeCartridge>>>;
+
+  /**
+   * Construct and simulate a get_cartridges_batch transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Get multiple cartridges by IDs in a single call
+   */
+  get_cartridges_batch: (
+    { ids }: { ids: Array<u32> },
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<Array<Option<GenomeCartridge>>>>;
 
   /**
    * Construct and simulate a get_user_cartridges transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -153,65 +125,22 @@ export interface Client {
    */
   get_user_cartridges: (
     { user }: { user: string },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<Array<u32>>>;
 
   /**
    * Construct and simulate a get_total_cartridges transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get total number of cartridges minted
    */
-  get_total_cartridges: (options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
-
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
-
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<u32>>;
+  get_total_cartridges: (
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<u32>>;
 
   /**
    * Construct and simulate a admin transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get the admin address
    */
-  admin: (options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
-
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
-
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<string>>;
+  admin: (options?: MethodOptions) => Promise<AssembledTransaction<string>>;
 
   /**
    * Construct and simulate a set_admin transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -219,70 +148,45 @@ export interface Client {
    */
   set_admin: (
     { new_admin }: { new_admin: string },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<null>>;
 
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
+  /**
+   * Construct and simulate a set_skin_count transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Update cartridge skin count (admin-only)
+   */
+  set_skin_count: (
+    { new_count }: { new_count: u64 },
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<null>>;
 
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+  /**
+   * Construct and simulate a set_drand_public_key transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Update drand public key (admin-only, 192 bytes uncompressed G2)
+   */
+  set_drand_public_key: (
+    { new_key }: { new_key: Buffer },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<null>>;
 
   /**
    * Construct and simulate a get_skin_count transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get number of available cartridge skins
    */
-  get_skin_count: (options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
-
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
-
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<u64>>;
+  get_skin_count: (
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<u64>>;
 
   /**
    * Construct and simulate a get_drand_public_key transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * Get stored drand public key (for debugging)
+   * Get stored drand public key
    */
-  get_drand_public_key: (options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
-
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
-
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<Buffer>>;
+  get_drand_public_key: (
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<Buffer>>;
 
   /**
    * Construct and simulate a finalize_splice transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * Force redeployment utility: comment/uncomment this function to change WASM hash
-   * This triggers scaffold to redeploy and regenerate TypeScript bindings with new contract ID
    * Finalize a cartridge into a Creature NFT using drand entropy
    * User submits entropy (round, randomness, signature) which is verified inline
    */
@@ -300,22 +204,7 @@ export interface Client {
       signature_compressed: Buffer;
       signature_uncompressed: Buffer;
     },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<u32>>;
 
   /**
@@ -324,23 +213,17 @@ export interface Client {
    */
   get_creature: (
     { creature_id }: { creature_id: u32 },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<Option<Creature>>>;
+
+  /**
+   * Construct and simulate a get_creatures_batch transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Get multiple creatures by IDs in a single call
+   */
+  get_creatures_batch: (
+    { ids }: { ids: Array<u32> },
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<Array<Option<Creature>>>>;
 
   /**
    * Construct and simulate a get_user_creatures transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -348,80 +231,22 @@ export interface Client {
    */
   get_user_creatures: (
     { user }: { user: string },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<Array<u32>>>;
+
+  /**
+   * Construct and simulate a extend_ttl transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Extend TTL for the contract instance and WASM code
+   * This is permissionless - anyone can keep the contract alive
+   */
+  extend_ttl: (options?: MethodOptions) => Promise<AssembledTransaction<null>>;
 
   /**
    * Construct and simulate a get_dev_mode transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get current dev mode status
    */
-  get_dev_mode: (options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
-
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
-
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<boolean>>;
-
-  /**
-   * Construct and simulate a test_full_verification transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * Test: Complete BLS12-381 drand signature verification with all arguments provided
-   * This function accepts all parameters and performs the full verification flow
-   * without relying on any stored state.
-   *
-   * Arguments:
-   * - round: Drand round number (u64)
-   * - signature: Uncompressed G1 point (96 bytes: x || y)
-   * - drand_public_key: Uncompressed G2 point (192 bytes: x_c1 || x_c0 || y_c1 || y_c0)
-   *
-   * Returns true if verification succeeds, false otherwise
-   */
-  test_full_verification: (
-    {
-      round,
-      signature,
-      drand_public_key,
-    }: { round: u64; signature: Buffer; drand_public_key: Buffer },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+  get_dev_mode: (
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<boolean>>;
 }
 export class Client extends ContractClient {
@@ -469,17 +294,21 @@ export class Client extends ContractClient {
         "AAAAAAAAANtDb25zdHJ1Y3RvciAtIHJ1bnMgYXV0b21hdGljYWxseSBkdXJpbmcgY29udHJhY3QgZGVwbG95bWVudApDQVAtMDA1ODogaHR0cHM6Ly9naXRodWIuY29tL3N0ZWxsYXIvc3RlbGxhci1wcm90b2NvbC9ibG9iL21hc3Rlci9jb3JlL2NhcC0wMDU4Lm1kCk5vdGU6IGRldl9tb2RlIHNob3VsZCBiZSBmYWxzZSBpbiBwcm9kdWN0aW9uIGZvciBmdWxsIEJMUzEyLTM4MSB2ZXJpZmljYXRpb24AAAAADV9fY29uc3RydWN0b3IAAAAAAAAFAAAAAAAAAAVhZG1pbgAAAAAAABMAAAAAAAAACXhsbV90b2tlbgAAAAAAABMAAAAAAAAAFGNhcnRyaWRnZV9za2luX2NvdW50AAAABgAAAAAAAAAIZGV2X21vZGUAAAABAAAAAAAAABBkcmFuZF9wdWJsaWNfa2V5AAAADgAAAAA=",
         "AAAAAAAAAL5NaW50IGEgbmV3IEdlbm9tZSBDYXJ0cmlkZ2UgTkZUCi0gVHJhbnNmZXJzIDEgWExNIGZlZSBmcm9tIHVzZXIgdG8gYWRtaW4KLSBVc2VzIFBSTkcgdG8gc2VsZWN0IHJhbmRvbSBjYXJ0cmlkZ2Ugc2tpbgotIE1pbnRzIGNhcnRyaWRnZSBORlQgd2l0aCBhc3NpZ25lZCBzcGxpY2Vfcm91bmQKUmV0dXJucyB0aGUgY2FydHJpZGdlIElEAAAAAAANc3BsaWNlX2dlbm9tZQAAAAAAAAEAAAAAAAAABHVzZXIAAAATAAAAAQAAAAQ=",
         "AAAAAAAAABhHZXQgY2FydHJpZGdlIGRhdGEgYnkgSUQAAAANZ2V0X2NhcnRyaWRnZQAAAAAAAAEAAAAAAAAADGNhcnRyaWRnZV9pZAAAAAQAAAABAAAD6AAAB9AAAAAPR2Vub21lQ2FydHJpZGdlAA==",
+        "AAAAAAAAAC9HZXQgbXVsdGlwbGUgY2FydHJpZGdlcyBieSBJRHMgaW4gYSBzaW5nbGUgY2FsbAAAAAAUZ2V0X2NhcnRyaWRnZXNfYmF0Y2gAAAABAAAAAAAAAANpZHMAAAAD6gAAAAQAAAABAAAD6gAAA+gAAAfQAAAAD0dlbm9tZUNhcnRyaWRnZQA=",
         "AAAAAAAAACVHZXQgYWxsIGNhcnRyaWRnZSBJRHMgb3duZWQgYnkgYSB1c2VyAAAAAAAAE2dldF91c2VyX2NhcnRyaWRnZXMAAAAAAQAAAAAAAAAEdXNlcgAAABMAAAABAAAD6gAAAAQ=",
         "AAAAAAAAACVHZXQgdG90YWwgbnVtYmVyIG9mIGNhcnRyaWRnZXMgbWludGVkAAAAAAAAFGdldF90b3RhbF9jYXJ0cmlkZ2VzAAAAAAAAAAEAAAAE",
         "AAAAAAAAABVHZXQgdGhlIGFkbWluIGFkZHJlc3MAAAAAAAAFYWRtaW4AAAAAAAAAAAAAAQAAABM=",
         "AAAAAAAAAC1VcGRhdGUgYWRtaW4gKG9ubHkgY2FsbGFibGUgYnkgY3VycmVudCBhZG1pbikAAAAAAAAJc2V0X2FkbWluAAAAAAAAAQAAAAAAAAAJbmV3X2FkbWluAAAAAAAAEwAAAAA=",
+        "AAAAAAAAAChVcGRhdGUgY2FydHJpZGdlIHNraW4gY291bnQgKGFkbWluLW9ubHkpAAAADnNldF9za2luX2NvdW50AAAAAAABAAAAAAAAAAluZXdfY291bnQAAAAAAAAGAAAAAA==",
+        "AAAAAAAAAD9VcGRhdGUgZHJhbmQgcHVibGljIGtleSAoYWRtaW4tb25seSwgMTkyIGJ5dGVzIHVuY29tcHJlc3NlZCBHMikAAAAAFHNldF9kcmFuZF9wdWJsaWNfa2V5AAAAAQAAAAAAAAAHbmV3X2tleQAAAAAOAAAAAA==",
         "AAAAAAAAACdHZXQgbnVtYmVyIG9mIGF2YWlsYWJsZSBjYXJ0cmlkZ2Ugc2tpbnMAAAAADmdldF9za2luX2NvdW50AAAAAAAAAAAAAQAAAAY=",
-        "AAAAAAAAACtHZXQgc3RvcmVkIGRyYW5kIHB1YmxpYyBrZXkgKGZvciBkZWJ1Z2dpbmcpAAAAABRnZXRfZHJhbmRfcHVibGljX2tleQAAAAAAAAABAAAADg==",
-        "AAAAAAAAATRGb3JjZSByZWRlcGxveW1lbnQgdXRpbGl0eTogY29tbWVudC91bmNvbW1lbnQgdGhpcyBmdW5jdGlvbiB0byBjaGFuZ2UgV0FTTSBoYXNoClRoaXMgdHJpZ2dlcnMgc2NhZmZvbGQgdG8gcmVkZXBsb3kgYW5kIHJlZ2VuZXJhdGUgVHlwZVNjcmlwdCBiaW5kaW5ncyB3aXRoIG5ldyBjb250cmFjdCBJRApGaW5hbGl6ZSBhIGNhcnRyaWRnZSBpbnRvIGEgQ3JlYXR1cmUgTkZUIHVzaW5nIGRyYW5kIGVudHJvcHkKVXNlciBzdWJtaXRzIGVudHJvcHkgKHJvdW5kLCByYW5kb21uZXNzLCBzaWduYXR1cmUpIHdoaWNoIGlzIHZlcmlmaWVkIGlubGluZQAAAA9maW5hbGl6ZV9zcGxpY2UAAAAABQAAAAAAAAAMY2FydHJpZGdlX2lkAAAABAAAAAAAAAAFcm91bmQAAAAAAAAGAAAAAAAAAApyYW5kb21uZXNzAAAAAAAOAAAAAAAAABRzaWduYXR1cmVfY29tcHJlc3NlZAAAAA4AAAAAAAAAFnNpZ25hdHVyZV91bmNvbXByZXNzZWQAAAAAAA4AAAABAAAABA==",
+        "AAAAAAAAABtHZXQgc3RvcmVkIGRyYW5kIHB1YmxpYyBrZXkAAAAAFGdldF9kcmFuZF9wdWJsaWNfa2V5AAAAAAAAAAEAAAAO",
+        "AAAAAAAAAIlGaW5hbGl6ZSBhIGNhcnRyaWRnZSBpbnRvIGEgQ3JlYXR1cmUgTkZUIHVzaW5nIGRyYW5kIGVudHJvcHkKVXNlciBzdWJtaXRzIGVudHJvcHkgKHJvdW5kLCByYW5kb21uZXNzLCBzaWduYXR1cmUpIHdoaWNoIGlzIHZlcmlmaWVkIGlubGluZQAAAAAAAA9maW5hbGl6ZV9zcGxpY2UAAAAABQAAAAAAAAAMY2FydHJpZGdlX2lkAAAABAAAAAAAAAAFcm91bmQAAAAAAAAGAAAAAAAAAApyYW5kb21uZXNzAAAAAAAOAAAAAAAAABRzaWduYXR1cmVfY29tcHJlc3NlZAAAAA4AAAAAAAAAFnNpZ25hdHVyZV91bmNvbXByZXNzZWQAAAAAAA4AAAABAAAABA==",
         "AAAAAAAAABdHZXQgY3JlYXR1cmUgZGF0YSBieSBJRAAAAAAMZ2V0X2NyZWF0dXJlAAAAAQAAAAAAAAALY3JlYXR1cmVfaWQAAAAABAAAAAEAAAPoAAAH0AAAAAhDcmVhdHVyZQ==",
+        "AAAAAAAAAC5HZXQgbXVsdGlwbGUgY3JlYXR1cmVzIGJ5IElEcyBpbiBhIHNpbmdsZSBjYWxsAAAAAAATZ2V0X2NyZWF0dXJlc19iYXRjaAAAAAABAAAAAAAAAANpZHMAAAAD6gAAAAQAAAABAAAD6gAAA+gAAAfQAAAACENyZWF0dXJl",
         "AAAAAAAAACRHZXQgYWxsIGNyZWF0dXJlIElEcyBvd25lZCBieSBhIHVzZXIAAAASZ2V0X3VzZXJfY3JlYXR1cmVzAAAAAAABAAAAAAAAAAR1c2VyAAAAEwAAAAEAAAPqAAAABA==",
+        "AAAAAAAAAG5FeHRlbmQgVFRMIGZvciB0aGUgY29udHJhY3QgaW5zdGFuY2UgYW5kIFdBU00gY29kZQpUaGlzIGlzIHBlcm1pc3Npb25sZXNzIC0gYW55b25lIGNhbiBrZWVwIHRoZSBjb250cmFjdCBhbGl2ZQAAAAAACmV4dGVuZF90dGwAAAAAAAAAAAAA",
         "AAAAAAAAABtHZXQgY3VycmVudCBkZXYgbW9kZSBzdGF0dXMAAAAADGdldF9kZXZfbW9kZQAAAAAAAAABAAAAAQ==",
-        "AAAAAAAAAbNUZXN0OiBDb21wbGV0ZSBCTFMxMi0zODEgZHJhbmQgc2lnbmF0dXJlIHZlcmlmaWNhdGlvbiB3aXRoIGFsbCBhcmd1bWVudHMgcHJvdmlkZWQKVGhpcyBmdW5jdGlvbiBhY2NlcHRzIGFsbCBwYXJhbWV0ZXJzIGFuZCBwZXJmb3JtcyB0aGUgZnVsbCB2ZXJpZmljYXRpb24gZmxvdwp3aXRob3V0IHJlbHlpbmcgb24gYW55IHN0b3JlZCBzdGF0ZS4KCkFyZ3VtZW50czoKLSByb3VuZDogRHJhbmQgcm91bmQgbnVtYmVyICh1NjQpCi0gc2lnbmF0dXJlOiBVbmNvbXByZXNzZWQgRzEgcG9pbnQgKDk2IGJ5dGVzOiB4IHx8IHkpCi0gZHJhbmRfcHVibGljX2tleTogVW5jb21wcmVzc2VkIEcyIHBvaW50ICgxOTIgYnl0ZXM6IHhfYzEgfHwgeF9jMCB8fCB5X2MxIHx8IHlfYzApCgpSZXR1cm5zIHRydWUgaWYgdmVyaWZpY2F0aW9uIHN1Y2NlZWRzLCBmYWxzZSBvdGhlcndpc2UAAAAAFnRlc3RfZnVsbF92ZXJpZmljYXRpb24AAAAAAAMAAAAAAAAABXJvdW5kAAAAAAAABgAAAAAAAAAJc2lnbmF0dXJlAAAAAAAADgAAAAAAAAAQZHJhbmRfcHVibGljX2tleQAAAA4AAAABAAAAAQ==",
       ]),
       options,
     );
@@ -487,16 +316,20 @@ export class Client extends ContractClient {
   public readonly fromJSON = {
     splice_genome: this.txFromJSON<u32>,
     get_cartridge: this.txFromJSON<Option<GenomeCartridge>>,
+    get_cartridges_batch: this.txFromJSON<Array<Option<GenomeCartridge>>>,
     get_user_cartridges: this.txFromJSON<Array<u32>>,
     get_total_cartridges: this.txFromJSON<u32>,
     admin: this.txFromJSON<string>,
     set_admin: this.txFromJSON<null>,
+    set_skin_count: this.txFromJSON<null>,
+    set_drand_public_key: this.txFromJSON<null>,
     get_skin_count: this.txFromJSON<u64>,
     get_drand_public_key: this.txFromJSON<Buffer>,
     finalize_splice: this.txFromJSON<u32>,
     get_creature: this.txFromJSON<Option<Creature>>,
+    get_creatures_batch: this.txFromJSON<Array<Option<Creature>>>,
     get_user_creatures: this.txFromJSON<Array<u32>>,
+    extend_ttl: this.txFromJSON<null>,
     get_dev_mode: this.txFromJSON<boolean>,
-    test_full_verification: this.txFromJSON<boolean>,
   };
 }

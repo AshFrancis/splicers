@@ -3,7 +3,7 @@
 
 /* Global HTML styles */
 html {
-  min-width: 1000px;
+  min-width: 320px;
 }
 
 /* Custom app variables only */
@@ -149,6 +149,42 @@ select:focus {
   100% {
     transform: translateX(-50%) scale(0.8);
     opacity: 0;
+  }
+}
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+  /* Stack layout vertically on mobile */
+  main {
+    padding: 0.5rem !important;
+  }
+
+  /* Scale down SDS header for mobile */
+  header {
+    flex-wrap: wrap;
+  }
+
+  /* Make cards full-width */
+  [class*="Card"] {
+    min-width: unset !important;
+    width: 100% !important;
+  }
+
+  /* Hide walking creatures on small screens */
+  div[style*="position: fixed"][style*="bottom"] {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Even smaller screens */
+  main {
+    padding: 0.25rem !important;
+  }
+
+  button {
+    font-size: 0.85rem !important;
+    padding: 0.4rem 0.8rem !important;
   }
 }
 

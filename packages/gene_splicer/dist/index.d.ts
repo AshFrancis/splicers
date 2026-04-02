@@ -9,12 +9,6 @@ import type { u32, u64, Option } from "@stellar/stellar-sdk/contract";
 export * from "@stellar/stellar-sdk";
 export * as contract from "@stellar/stellar-sdk/contract";
 export * as rpc from "@stellar/stellar-sdk/rpc";
-export declare const networks: {
-  readonly testnet: {
-    readonly networkPassphrase: "Test SDF Network ; September 2015";
-    readonly contractId: "CDND6UOWUI4OOVTY3ETLKXX6SIEA3OXY6TB3CY2LV54B7SSQAQBFAOG2";
-  };
-};
 /**
  * Gene rarity levels (affects visual appearance and value)
  */
@@ -121,20 +115,7 @@ export interface Client {
     }: {
       user: string;
     },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<u32>>;
   /**
    * Construct and simulate a get_cartridge transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -146,21 +127,20 @@ export interface Client {
     }: {
       cartridge_id: u32;
     },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<Option<GenomeCartridge>>>;
+  /**
+   * Construct and simulate a get_cartridges_batch transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Get multiple cartridges by IDs in a single call
+   */
+  get_cartridges_batch: (
+    {
+      ids,
+    }: {
+      ids: Array<u32>;
+    },
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<Array<Option<GenomeCartridge>>>>;
   /**
    * Construct and simulate a get_user_cartridges transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get all cartridge IDs owned by a user
@@ -171,57 +151,20 @@ export interface Client {
     }: {
       user: string;
     },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<Array<u32>>>;
   /**
    * Construct and simulate a get_total_cartridges transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get total number of cartridges minted
    */
-  get_total_cartridges: (options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<u32>>;
+  get_total_cartridges: (
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<u32>>;
   /**
    * Construct and simulate a admin transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get the admin address
    */
-  admin: (options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<string>>;
+  admin: (options?: MethodOptions) => Promise<AssembledTransaction<string>>;
   /**
    * Construct and simulate a set_admin transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Update admin (only callable by current admin)
@@ -232,61 +175,48 @@ export interface Client {
     }: {
       new_admin: string;
     },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<null>>;
+  /**
+   * Construct and simulate a set_skin_count transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Update cartridge skin count (admin-only)
+   */
+  set_skin_count: (
+    {
+      new_count,
+    }: {
+      new_count: u64;
     },
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<null>>;
+  /**
+   * Construct and simulate a set_drand_public_key transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Update drand public key (admin-only, 192 bytes uncompressed G2)
+   */
+  set_drand_public_key: (
+    {
+      new_key,
+    }: {
+      new_key: Buffer;
+    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<null>>;
   /**
    * Construct and simulate a get_skin_count transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get number of available cartridge skins
    */
-  get_skin_count: (options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<u64>>;
+  get_skin_count: (
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<u64>>;
   /**
    * Construct and simulate a get_drand_public_key transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * Get stored drand public key (for debugging)
+   * Get stored drand public key
    */
-  get_drand_public_key: (options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<Buffer>>;
+  get_drand_public_key: (
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<Buffer>>;
   /**
    * Construct and simulate a finalize_splice transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * Force redeployment utility: comment/uncomment this function to change WASM hash
-   * This triggers scaffold to redeploy and regenerate TypeScript bindings with new contract ID
    * Finalize a cartridge into a Creature NFT using drand entropy
    * User submits entropy (round, randomness, signature) which is verified inline
    */
@@ -304,20 +234,7 @@ export interface Client {
       signature_compressed: Buffer;
       signature_uncompressed: Buffer;
     },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<u32>>;
   /**
    * Construct and simulate a get_creature transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -329,21 +246,20 @@ export interface Client {
     }: {
       creature_id: u32;
     },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<Option<Creature>>>;
+  /**
+   * Construct and simulate a get_creatures_batch transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Get multiple creatures by IDs in a single call
+   */
+  get_creatures_batch: (
+    {
+      ids,
+    }: {
+      ids: Array<u32>;
+    },
+    options?: MethodOptions,
+  ) => Promise<AssembledTransaction<Array<Option<Creature>>>>;
   /**
    * Construct and simulate a get_user_creatures transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get all creature IDs owned by a user
@@ -354,76 +270,20 @@ export interface Client {
     }: {
       user: string;
     },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<Array<u32>>>;
+  /**
+   * Construct and simulate a extend_ttl transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   * Extend TTL for the contract instance and WASM code
+   * This is permissionless - anyone can keep the contract alive
+   */
+  extend_ttl: (options?: MethodOptions) => Promise<AssembledTransaction<null>>;
   /**
    * Construct and simulate a get_dev_mode transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get current dev mode status
    */
-  get_dev_mode: (options?: {
-    /**
-     * The fee to pay for the transaction. Default: BASE_FEE
-     */
-    fee?: number;
-    /**
-     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-     */
-    timeoutInSeconds?: number;
-    /**
-     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-     */
-    simulate?: boolean;
-  }) => Promise<AssembledTransaction<boolean>>;
-  /**
-   * Construct and simulate a test_full_verification transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * Test: Complete BLS12-381 drand signature verification with all arguments provided
-   * This function accepts all parameters and performs the full verification flow
-   * without relying on any stored state.
-   *
-   * Arguments:
-   * - round: Drand round number (u64)
-   * - signature: Uncompressed G1 point (96 bytes: x || y)
-   * - drand_public_key: Uncompressed G2 point (192 bytes: x_c1 || x_c0 || y_c1 || y_c0)
-   *
-   * Returns true if verification succeeds, false otherwise
-   */
-  test_full_verification: (
-    {
-      round,
-      signature,
-      drand_public_key,
-    }: {
-      round: u64;
-      signature: Buffer;
-      drand_public_key: Buffer;
-    },
-    options?: {
-      /**
-       * The fee to pay for the transaction. Default: BASE_FEE
-       */
-      fee?: number;
-      /**
-       * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
-       */
-      timeoutInSeconds?: number;
-      /**
-       * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
-       */
-      simulate?: boolean;
-    },
+  get_dev_mode: (
+    options?: MethodOptions,
   ) => Promise<AssembledTransaction<boolean>>;
 }
 export declare class Client extends ContractClient {
@@ -460,18 +320,26 @@ export declare class Client extends ContractClient {
     get_cartridge: (
       json: string,
     ) => AssembledTransaction<Option<GenomeCartridge>>;
+    get_cartridges_batch: (
+      json: string,
+    ) => AssembledTransaction<Option<GenomeCartridge>[]>;
     get_user_cartridges: (json: string) => AssembledTransaction<number[]>;
     get_total_cartridges: (json: string) => AssembledTransaction<number>;
     admin: (json: string) => AssembledTransaction<string>;
     set_admin: (json: string) => AssembledTransaction<null>;
+    set_skin_count: (json: string) => AssembledTransaction<null>;
+    set_drand_public_key: (json: string) => AssembledTransaction<null>;
     get_skin_count: (json: string) => AssembledTransaction<bigint>;
     get_drand_public_key: (
       json: string,
     ) => AssembledTransaction<Buffer<ArrayBufferLike>>;
     finalize_splice: (json: string) => AssembledTransaction<number>;
     get_creature: (json: string) => AssembledTransaction<Option<Creature>>;
+    get_creatures_batch: (
+      json: string,
+    ) => AssembledTransaction<Option<Creature>[]>;
     get_user_creatures: (json: string) => AssembledTransaction<number[]>;
+    extend_ttl: (json: string) => AssembledTransaction<null>;
     get_dev_mode: (json: string) => AssembledTransaction<boolean>;
-    test_full_verification: (json: string) => AssembledTransaction<boolean>;
   };
 }

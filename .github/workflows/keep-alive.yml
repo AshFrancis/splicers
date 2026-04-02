@@ -40,7 +40,7 @@ jobs:
       - name: Extend contract TTL
         run: |
           stellar contract invoke \
-            --id CAW7YINV7N7IS64QBSO2YHPNJY7DPEID2V2L6VIYRO4GSTWOB5JDINEB \
+            --id ${{ secrets.TESTNET_CONTRACT_ID }} \
             --network testnet \
             --source testnet-user \
             --send=yes \

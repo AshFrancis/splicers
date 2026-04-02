@@ -99,15 +99,19 @@ async function startKeepAlive() {
     logger.error("keep-alive", "Initial TTL extension failed", e);
   }
 
-  setInterval(async () => {
-    logger.info("keep-alive", "Running scheduled TTL extension");
-    try {
-      await keepAlive();
-      logger.info("keep-alive", "TTL extension complete");
-    } catch (e) {
-      logger.error("keep-alive", "TTL extension failed", e);
-    }
-  }, KEEP_ALIVE_INTERVAL);
+  setInterval(
+    () =>
+      void (async () => {
+        logger.info("keep-alive", "Running scheduled TTL extension");
+        try {
+          await keepAlive();
+          logger.info("keep-alive", "TTL extension complete");
+        } catch (e) {
+          logger.error("keep-alive", "TTL extension failed", e);
+        }
+      })(),
+    KEEP_ALIVE_INTERVAL,
+  );
 }
 
 const server = Bun.serve({
@@ -150,7 +154,7 @@ const server = Bun.serve({
       }
 
       try {
-        const body = await req.json();
+        const body: unknown = await req.json();
         const validation = validatePinInput(body);
         if (!validation.valid) {
           return Response.json(
@@ -199,4 +203,4 @@ const server = Bun.serve({
 });
 
 logger.info("server", `Listening on port ${server.port}`);
-startKeepAlive();
+void startKeepAlive();

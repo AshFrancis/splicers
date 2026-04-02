@@ -10,12 +10,6 @@ if (!contractId) {
   throw new Error('PUBLIC_GENE_SPLICER_CONTRACT_ID is not set in .env - cannot initialize contract client');
 }
 
-console.log('🔍 Gene Splicer Config:', {
-  contractId,
-  networkPassphrase,
-  rpcUrl,
-});
-
 export default new Client.Client({
   networkPassphrase,
   contractId,

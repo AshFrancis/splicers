@@ -262,6 +262,15 @@ impl GeneSplicer {
             .get(&DataKey::Cartridge(cartridge_id))
     }
 
+    /// Get multiple cartridges by IDs in a single call
+    pub fn get_cartridges_batch(env: Env, ids: Vec<u32>) -> Vec<Option<GenomeCartridge>> {
+        let mut results = Vec::new(&env);
+        for id in ids.iter() {
+            results.push_back(env.storage().persistent().get(&DataKey::Cartridge(id)));
+        }
+        results
+    }
+
     /// Get all cartridge IDs owned by a user
     pub fn get_user_cartridges(env: Env, user: Address) -> Vec<u32> {
         env.storage()
@@ -516,6 +525,15 @@ impl GeneSplicer {
         env.storage()
             .persistent()
             .get(&DataKey::Creature(creature_id))
+    }
+
+    /// Get multiple creatures by IDs in a single call
+    pub fn get_creatures_batch(env: Env, ids: Vec<u32>) -> Vec<Option<Creature>> {
+        let mut results = Vec::new(&env);
+        for id in ids.iter() {
+            results.push_back(env.storage().persistent().get(&DataKey::Creature(id)));
+        }
+        results
     }
 
     /// Get all creature IDs owned by a user

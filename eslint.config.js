@@ -12,7 +12,6 @@ export default tseslint.config(
   globalIgnores([
     "dist",
     "packages",
-    "server",
     "src/contracts/*",
     "!src/contracts/util.ts",
     "scripts/decompressDrandPubkey.ts",
@@ -27,7 +26,7 @@ export default tseslint.config(
       reactX.configs["recommended-typescript"],
       prettier,
     ],
-    files: ["**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -41,6 +40,23 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
+    },
+  },
+  // Server-side TypeScript (Bun runtime)
+  {
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommendedTypeChecked,
+      prettier,
+    ],
+    files: ["server/**/*.ts"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.node,
+      parserOptions: {
+        project: ["./server/tsconfig.json"],
+        tsconfigRoot: import.meta.dirname,
+      },
     },
   },
 );

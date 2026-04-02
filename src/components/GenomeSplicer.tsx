@@ -223,21 +223,16 @@ export const GenomeSplicer: React.FC = () => {
         const result = await tx.simulate();
         const cartridgeIds = result.result ?? [];
 
-        // Fetch full details for each cartridge
-        const cartridgeDetails = await Promise.all(
-          cartridgeIds.map(async (id) => {
-            try {
-              const detailTx = await GeneSplicer.get_cartridge({
-                cartridge_id: id,
-              });
-              const detailResult = await detailTx.simulate();
-              return detailResult.result as CartridgeData | null;
-            } catch (err) {
-              console.error(`Failed to fetch cartridge ${id}:`, err);
-              return null;
-            }
-          }),
-        );
+        // Batch fetch all cartridge details in a single RPC call
+        if (cartridgeIds.length === 0) return [];
+        const batchTx = await GeneSplicer.get_cartridges_batch({
+          ids: cartridgeIds,
+        });
+        const batchResult = await batchTx.simulate();
+        const cartridgeDetails = (batchResult.result ?? []) as (
+          | CartridgeData
+          | undefined
+        )[];
 
         return cartridgeDetails.filter(
           (c): c is CartridgeData => c !== null && c !== undefined,
@@ -264,21 +259,16 @@ export const GenomeSplicer: React.FC = () => {
         const result = await tx.simulate();
         const creatureIds = result.result ?? [];
 
-        // Fetch full details for each creature
-        const creatureDetails = await Promise.all(
-          creatureIds.map(async (id) => {
-            try {
-              const detailTx = await GeneSplicer.get_creature({
-                creature_id: id,
-              });
-              const detailResult = await detailTx.simulate();
-              return detailResult.result as CreatureData | null;
-            } catch (err) {
-              console.error(`Failed to fetch creature ${id}:`, err);
-              return null;
-            }
-          }),
-        );
+        // Batch fetch all creature details in a single RPC call
+        if (creatureIds.length === 0) return [];
+        const batchTx = await GeneSplicer.get_creatures_batch({
+          ids: creatureIds,
+        });
+        const batchResult = await batchTx.simulate();
+        const creatureDetails = (batchResult.result ?? []) as (
+          | CreatureData
+          | undefined
+        )[];
 
         return creatureDetails.filter(
           (c): c is CreatureData => c !== null && c !== undefined,

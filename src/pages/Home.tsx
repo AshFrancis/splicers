@@ -109,8 +109,8 @@ const Home: React.FC = () => (
               available cosmetic skins
             </li>
             <li>
-              <Code size="md">test_full_verification(round, sig, pubkey)</Code>{" "}
-              - Test BLS12-381 signature verification with live drand data
+              <Code size="md">extend_ttl()</Code> - Extend contract TTL to
+              prevent data expiration
             </li>
           </ul>
         </Card>

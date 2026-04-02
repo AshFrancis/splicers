@@ -55,12 +55,13 @@ export async function pinCreature(args: PinCreatureArgs) {
     name: `splicer-creature-${args.creatureId}.json`,
   });
 
-  const metadataUrl = `https://gateway.pinata.cloud/ipfs/${upload.IpfsHash}`;
+  const ipfsHash = String(upload.IpfsHash);
+  const metadataUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
 
-  console.log(`[pinning] Creature #${args.creatureId} pinned: ${metadataUrl}`);
-
-  return {
-    ipfsHash: upload.IpfsHash,
+  const { logger } = await import("./log");
+  logger.info("pinning", `Creature #${args.creatureId} pinned`, {
     metadataUrl,
-  };
+  });
+
+  return { ipfsHash, metadataUrl };
 }
