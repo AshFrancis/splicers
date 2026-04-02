@@ -1,0 +1,33 @@
+name: Keep Contract Alive
+
+on:
+  schedule:
+    # Run weekly on Mondays at 00:00 UTC
+    - cron: "0 0 * * 1"
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  extend-ttl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Stellar CLI
+        run: |
+          cargo install stellar-cli --locked
+        env:
+          CARGO_TERM_COLOR: always
+
+      - name: Import secret key
+        run: |
+          stellar keys add testnet-user --secret-key <<< "${{ secrets.TESTNET_SECRET_KEY }}"
+
+      - name: Extend contract TTL
+        run: |
+          stellar contract invoke \
+            --id CAW7YINV7N7IS64QBSO2YHPNJY7DPEID2V2L6VIYRO4GSTWOB5JDINEB \
+            --network testnet \
+            --source testnet-user \
+            --send=yes \
+            -- extend_ttl

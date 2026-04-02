@@ -6,6 +6,12 @@ use soroban_sdk::{
     token, Address, Bytes, BytesN, Env, Vec,
 };
 
+// TTL constants (in ledger sequences, ~6 seconds each)
+// Threshold: extend TTL when remaining TTL drops below this value (~7 days)
+const TTL_THRESHOLD: u32 = 100_800;
+// Extend to: set TTL to this value when extending (~30 days)
+const TTL_EXTEND_TO: u32 = 432_000;
+
 /// Gene rarity levels (affects visual appearance and value)
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -119,6 +125,11 @@ impl GeneSplicer {
         env.storage()
             .instance()
             .set(&DataKey::DrandPublicKey, &drand_public_key);
+
+        // Extend instance TTL on deployment
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     /// Mint a new Genome Cartridge NFT
@@ -128,6 +139,11 @@ impl GeneSplicer {
     /// Returns the cartridge ID
     pub fn splice_genome(env: Env, user: Address) -> u32 {
         user.require_auth();
+
+        // Extend instance TTL on every interaction
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
 
         // Get contract configuration
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
@@ -198,6 +214,11 @@ impl GeneSplicer {
         env.storage()
             .persistent()
             .set(&DataKey::Cartridge(cartridge_id), &cartridge);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Cartridge(cartridge_id),
+            TTL_THRESHOLD,
+            TTL_EXTEND_TO,
+        );
 
         // Add to user's cartridge list
         let mut user_cartridges: Vec<u32> = env
@@ -208,7 +229,12 @@ impl GeneSplicer {
         user_cartridges.push_back(cartridge_id);
         env.storage()
             .persistent()
-            .set(&DataKey::UserCartridges(user), &user_cartridges);
+            .set(&DataKey::UserCartridges(user.clone()), &user_cartridges);
+        env.storage().persistent().extend_ttl(
+            &DataKey::UserCartridges(user),
+            TTL_THRESHOLD,
+            TTL_EXTEND_TO,
+        );
 
         // Increment cartridge counter
         env.storage()
@@ -295,6 +321,11 @@ impl GeneSplicer {
         signature_compressed: Bytes,   // 48 bytes - for randomness (matches drand)
         signature_uncompressed: Bytes, // 96 bytes - for BLS verification
     ) -> u32 {
+        // Extend instance TTL on every interaction
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+
         // Get cartridge
         let mut cartridge: GenomeCartridge = env
             .storage()
@@ -383,11 +414,21 @@ impl GeneSplicer {
         env.storage()
             .persistent()
             .set(&DataKey::Cartridge(cartridge_id), &cartridge);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Cartridge(cartridge_id),
+            TTL_THRESHOLD,
+            TTL_EXTEND_TO,
+        );
 
         // Store creature
         env.storage()
             .persistent()
             .set(&DataKey::Creature(cartridge_id), &creature);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Creature(cartridge_id),
+            TTL_THRESHOLD,
+            TTL_EXTEND_TO,
+        );
 
         // Add to user's creature list
         let mut user_creatures: Vec<u32> = env
@@ -398,7 +439,12 @@ impl GeneSplicer {
         user_creatures.push_back(cartridge_id);
         env.storage()
             .persistent()
-            .set(&DataKey::UserCreatures(cartridge.owner), &user_creatures);
+            .set(&DataKey::UserCreatures(cartridge.owner.clone()), &user_creatures);
+        env.storage().persistent().extend_ttl(
+            &DataKey::UserCreatures(cartridge.owner),
+            TTL_THRESHOLD,
+            TTL_EXTEND_TO,
+        );
 
         // Emit event
         CreatureFinalized {
@@ -464,6 +510,17 @@ impl GeneSplicer {
             .persistent()
             .get(&DataKey::UserCreatures(user))
             .unwrap_or(Vec::new(&env))
+    }
+
+    /// Extend TTL for the contract instance and WASM code
+    /// This is permissionless - anyone can keep the contract alive
+    pub fn extend_ttl(env: Env) {
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        // Also extend the contract's WASM code entry
+        env.deployer()
+            .extend_ttl_for_contract_instance(env.current_contract_address(), TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     /// Get current dev mode status
