@@ -55,9 +55,8 @@ const Home: React.FC = () => (
             Development
           </Text>
           <Text as="p" size="md">
-            The game contract is currently under development. Check out the{" "}
-            <Code size="md">&lt;/&gt; Debugger</Code> to interact with the
-            gene-splicer contract directly.
+            The game contract is live on Stellar testnet. Contract functions
+            available:
           </Text>
 
           <Text as="p" size="md">

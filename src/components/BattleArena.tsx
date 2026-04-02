@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button, Text } from "@stellar/design-system";
 import { CreatureRenderer } from "./CreatureRenderer";
 import type { Creature } from "gene_splicer";
+import { calculatePower } from "../util/creature";
 
 interface BattleArenaProps {
   playerCreature: Creature;
@@ -51,20 +52,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({
   const enemyAttackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isExecutingTurnRef = useRef<boolean>(false);
   const hasScheduledEnemyAttackRef = useRef<boolean>(false);
-
-  // Calculate power level
-  const calculatePower = (creature: Creature): number => {
-    const rarityToPower: Record<string, number> = {
-      normal: 3,
-      rare: 6,
-      legendary: 10,
-    };
-    return (
-      (rarityToPower[creature.head_gene.rarity.tag.toLowerCase()] || 3) +
-      (rarityToPower[creature.body_gene.rarity.tag.toLowerCase()] || 3) +
-      (rarityToPower[creature.legs_gene.rarity.tag.toLowerCase()] || 3)
-    );
-  };
 
   // Generate random enemy creature and select arena
   useEffect(() => {

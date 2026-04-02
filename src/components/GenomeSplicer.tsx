@@ -15,6 +15,7 @@ import {
   parseAndDecompressEntropy,
 } from "../services/entropyRelayer";
 import { DRAND_GENESIS, DRAND_PERIOD } from "../util/drand";
+import { calculatePower } from "../util/creature";
 
 interface GeneTrait {
   id: number;
@@ -188,25 +189,6 @@ export const GenomeSplicer: React.FC = () => {
   const getTraitName = (geneId: number) => {
     const trait = geneTraits.find((t) => t.id === geneId % 15);
     return trait?.name || `Gene #${geneId}`;
-  };
-
-  // Calculate power level based on rarity
-  const calculatePowerLevel = (creature: CreatureData) => {
-    const rarityToPower: Record<string, number> = {
-      normal: 3,
-      rare: 6,
-      legendary: 10,
-    };
-
-    const headRarity = creature.head_gene.rarity.tag.toLowerCase();
-    const bodyRarity = creature.body_gene.rarity.tag.toLowerCase();
-    const legsRarity = creature.legs_gene.rarity.tag.toLowerCase();
-
-    return (
-      (rarityToPower[headRarity] || 3) +
-      (rarityToPower[bodyRarity] || 3) +
-      (rarityToPower[legsRarity] || 3)
-    );
   };
 
   // Query user's cartridges with full details
@@ -541,7 +523,7 @@ export const GenomeSplicer: React.FC = () => {
 
                       {/* Power Level */}
                       {(() => {
-                        const powerLevel = calculatePowerLevel(creature);
+                        const powerLevel = calculatePower(creature);
                         const powerPercentage = (powerLevel / 30) * 100;
                         // Color gradient from grey to red based on power level
                         const getPowerColor = (power: number) => {
