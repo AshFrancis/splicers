@@ -12,26 +12,28 @@ const AppLayout: React.FC = () => (
       projectTitle="Splicers"
       contentRight={
         <>
-          <nav>
-            <NavLink
-              to="/debug"
-              style={{
-                textDecoration: "none",
-              }}
-            >
-              {({ isActive }) => (
-                <Button
-                  variant="tertiary"
-                  size="md"
-                  onClick={() => (window.location.href = "/debug")}
-                  disabled={isActive}
-                >
-                  <Icon.Code02 size="md" />
-                  Debugger
-                </Button>
-              )}
-            </NavLink>
-          </nav>
+          {import.meta.env.DEV && (
+            <nav>
+              <NavLink
+                to="/debug"
+                style={{
+                  textDecoration: "none",
+                }}
+              >
+                {({ isActive }) => (
+                  <Button
+                    variant="tertiary"
+                    size="md"
+                    onClick={() => (window.location.href = "/debug")}
+                    disabled={isActive}
+                  >
+                    <Icon.Code02 size="md" />
+                    Debugger
+                  </Button>
+                )}
+              </NavLink>
+            </nav>
+          )}
           <ConnectAccount />
         </>
       }
@@ -47,8 +49,12 @@ function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Home />} />
-        <Route path="/debug" element={<Debugger />} />
-        <Route path="/debug/:contractName" element={<Debugger />} />
+        {import.meta.env.DEV && (
+          <>
+            <Route path="/debug" element={<Debugger />} />
+            <Route path="/debug/:contractName" element={<Debugger />} />
+          </>
+        )}
       </Route>
     </Routes>
   );

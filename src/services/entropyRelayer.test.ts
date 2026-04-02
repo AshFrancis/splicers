@@ -186,6 +186,9 @@ describe("fetchLatestDrandEntropy", () => {
     expect(result.signature).toBe(mockResponse.signature);
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining("/public/latest"),
+      expect.objectContaining({
+        signal: expect.any(AbortSignal) as AbortSignal,
+      }),
     );
   });
 
@@ -231,6 +234,9 @@ describe("fetchDrandEntropy", () => {
     expect(result.randomness).toBe(mockResponse.randomness);
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining("/public/12345"),
+      expect.objectContaining({
+        signal: expect.any(AbortSignal) as AbortSignal,
+      }),
     );
   });
 

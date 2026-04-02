@@ -138,7 +138,11 @@ interface DrandApiResponse {
  * Fetch latest drand entropy from quicknet
  */
 export async function fetchLatestDrandEntropy(): Promise<DrandRound> {
-  const response = await fetch(`${DRAND_QUICKNET_URL}/public/latest`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  const response = await fetch(`${DRAND_QUICKNET_URL}/public/latest`, {
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
   if (!response.ok) {
     throw new Error(`Failed to fetch drand entropy: ${response.statusText}`);
   }
@@ -155,7 +159,11 @@ export async function fetchLatestDrandEntropy(): Promise<DrandRound> {
  * Fetch drand entropy for a specific round
  */
 export async function fetchDrandEntropy(round: number): Promise<DrandRound> {
-  const response = await fetch(`${DRAND_QUICKNET_URL}/public/${round}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  const response = await fetch(`${DRAND_QUICKNET_URL}/public/${round}`, {
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeout));
   if (!response.ok) {
     throw new Error(
       `Failed to fetch drand entropy for round ${round}: ${response.statusText}`,

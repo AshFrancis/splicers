@@ -83,7 +83,7 @@ function markRead(
   return (prev) =>
     prev.map((notification) =>
       notification.id === id
-        ? { ...notification, isVisible: true }
+        ? { ...notification, isVisible: false }
         : notification,
     );
 }

@@ -66,8 +66,10 @@
     "vitest": "^4.0.6"
   },
   "lint-staged": {
+    "**/*.{ts,tsx,js,jsx}": [
+      "eslint --fix --no-warn-ignored"
+    ],
     "**/*": [
-      "eslint --fix --no-warn-ignored",
       "prettier --write --ignore-unknown"
     ]
   }

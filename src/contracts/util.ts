@@ -17,6 +17,12 @@ const envSchema = z.object({
 
 const parsed = envSchema.safeParse(import.meta.env);
 
+if (!parsed.success && import.meta.env.PROD) {
+  throw new Error(
+    `Missing or invalid environment variables: ${parsed.error.message}`,
+  );
+}
+
 const env: z.infer<typeof envSchema> = parsed.success
   ? parsed.data
   : {

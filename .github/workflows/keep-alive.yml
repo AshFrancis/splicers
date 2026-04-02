@@ -2,8 +2,8 @@ name: Keep Contract Alive
 
 on:
   schedule:
-    # Run weekly on Mondays at 00:00 UTC
-    - cron: "0 0 * * 1"
+    # Run daily at 00:00 UTC (defense-in-depth for TTL)
+    - cron: "0 0 * * *"
   workflow_dispatch: # Allow manual trigger
 
 jobs:
@@ -13,9 +13,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev libdbus-1-dev pkg-config
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/stellar
+            ~/.cargo/.crates.toml
+            ~/.cargo/.crates2.json
+          key: stellar-cli-${{ runner.os }}
+
       - name: Install Stellar CLI
         run: |
-          cargo install stellar-cli --locked
+          if ! command -v stellar &> /dev/null; then
+            cargo install stellar-cli --locked
+          fi
         env:
           CARGO_TERM_COLOR: always
 

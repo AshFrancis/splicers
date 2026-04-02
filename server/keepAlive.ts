@@ -1,6 +1,7 @@
-const CONTRACT_ID =
-  process.env.CONTRACT_ID ||
-  "CAW7YINV7N7IS64QBSO2YHPNJY7DPEID2V2L6VIYRO4GSTWOB5JDINEB";
+const CONTRACT_ID = process.env.CONTRACT_ID;
+if (!CONTRACT_ID) {
+  throw new Error("CONTRACT_ID environment variable is required");
+}
 const NETWORK = process.env.STELLAR_NETWORK || "testnet";
 
 export async function keepAlive() {

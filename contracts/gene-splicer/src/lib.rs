@@ -146,13 +146,13 @@ impl GeneSplicer {
             .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
 
         // Get contract configuration
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
-        let xlm_token: Address = env.storage().instance().get(&DataKey::XlmToken).unwrap();
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("Admin not configured");
+        let xlm_token: Address = env.storage().instance().get(&DataKey::XlmToken).expect("XLM token not configured");
         let skin_count: u64 = env
             .storage()
             .instance()
             .get(&DataKey::CartridgeSkinCount)
-            .unwrap();
+            .expect("Skin count not configured");
 
         // Transfer 1 XLM (10_000_000 stroops) from user to admin
         let xlm_client = token::Client::new(&env, &xlm_token);
@@ -164,17 +164,8 @@ impl GeneSplicer {
             panic!("Insufficient XLM balance for minting fee");
         }
 
-        // Get balances before transfer for verification
-        let admin_balance_before = xlm_client.balance(&admin);
-
-        // Execute transfer - will panic if it fails for any reason
+        // Execute transfer — panics on failure (Soroban token contract guarantee)
         xlm_client.transfer(&user, &admin, &fee_amount);
-
-        // Verify transfer succeeded by checking admin received the funds
-        let admin_balance_after = xlm_client.balance(&admin);
-        if admin_balance_after != admin_balance_before + fee_amount {
-            panic!("Transfer verification failed");
-        }
 
         // Generate random skin ID using PRNG (u64 for GenRange compatibility)
         let skin_id: u64 = env.prng().gen_range(0..skin_count);
@@ -199,7 +190,7 @@ impl GeneSplicer {
             .storage()
             .instance()
             .get(&DataKey::NextCartridgeId)
-            .unwrap();
+            .expect("NextCartridgeId not configured");
 
         let cartridge = GenomeCartridge {
             id: cartridge_id,
@@ -239,7 +230,7 @@ impl GeneSplicer {
         // Increment cartridge counter
         env.storage()
             .instance()
-            .set(&DataKey::NextCartridgeId, &(cartridge_id + 1));
+            .set(&DataKey::NextCartridgeId, &cartridge_id.checked_add(1).expect("Cartridge ID overflow"));
 
         // Emit event
         CartridgeMinted {
@@ -279,12 +270,12 @@ impl GeneSplicer {
 
     /// Get the admin address
     pub fn admin(env: Env) -> Address {
-        env.storage().instance().get(&DataKey::Admin).unwrap()
+        env.storage().instance().get(&DataKey::Admin).expect("Admin not configured")
     }
 
     /// Update admin (only callable by current admin)
     pub fn set_admin(env: Env, new_admin: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("Admin not configured");
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &new_admin);
     }
@@ -294,22 +285,16 @@ impl GeneSplicer {
         env.storage()
             .instance()
             .get(&DataKey::CartridgeSkinCount)
-            .unwrap()
+            .expect("Skin count not configured")
     }
 
-    /// Get stored drand public key (for debugging)
+    /// Get stored drand public key
     pub fn get_drand_public_key(env: Env) -> Bytes {
         env.storage()
             .instance()
             .get(&DataKey::DrandPublicKey)
-            .unwrap()
+            .expect("Drand public key not configured")
     }
-
-    /// Force redeployment utility: comment/uncomment this function to change WASM hash
-    /// This triggers scaffold to redeploy and regenerate TypeScript bindings with new contract ID
-    // pub fn hello(env: Env) -> Symbol {
-    //     Symbol::new(&env, "world")
-    // }
 
     /// Finalize a cartridge into a Creature NFT using drand entropy
     /// User submits entropy (round, randomness, signature) which is verified inline
@@ -531,129 +516,6 @@ impl GeneSplicer {
             .unwrap_or(false)
     }
 
-    // ========== BLS12-381 TESTING ==========
-
-    /// Test: Complete BLS12-381 drand signature verification with all arguments provided
-    /// This function accepts all parameters and performs the full verification flow
-    /// without relying on any stored state.
-    ///
-    /// Arguments:
-    /// - round: Drand round number (u64)
-    /// - signature: Uncompressed G1 point (96 bytes: x || y)
-    /// - drand_public_key: Uncompressed G2 point (192 bytes: x_c1 || x_c0 || y_c1 || y_c0)
-    ///
-    /// Returns true if verification succeeds, false otherwise
-    pub fn test_full_verification(
-        env: Env,
-        round: u64,
-        signature: Bytes,
-        drand_public_key: Bytes,
-    ) -> bool {
-        // Step 1: Negate signature BEFORE deserializing (to avoid needing to negate G1Affine)
-        // Signature verification: e(sig, G2_gen) == e(H(msg), pubkey)
-        // Rearranges to: e(-sig, G2_gen) * e(H(msg), pubkey) == 1
-        if signature.len() != 96 {
-            return false;
-        }
-
-        // Negate the signature by negating the y-coordinate
-        let negated_sig = crate::negate_g1_bytes(&env, &signature);
-
-        let sig_bytes: BytesN<96> = match negated_sig.try_into() {
-            Ok(b) => b,
-            Err(_) => return false,
-        };
-        let neg_sig_point = G1Affine::from_bytes(sig_bytes);
-
-        // Step 2: Check negated signature in G1 subgroup
-        if !env.crypto().bls12_381().g1_is_in_subgroup(&neg_sig_point) {
-            return false;
-        }
-
-        // Step 3: Construct message (SHA-256 of round number)
-        let round_bytes: [u8; 8] = round.to_be_bytes();
-        let mut round_bytes_soroban = Bytes::new(&env);
-        for byte in round_bytes.iter() {
-            round_bytes_soroban.push_back(*byte);
-        }
-
-        // SHA256 hash the round number
-        let message_hash = env.crypto().sha256(&round_bytes_soroban);
-
-        // Convert BytesN<32> to Bytes for hash_to_g1
-        let message_bytes_n = message_hash.to_bytes();
-        let mut message = Bytes::new(&env);
-        for i in 0..32 {
-            message.push_back(message_bytes_n.get(i).unwrap());
-        }
-
-        // Step 4: Hash message to G1 using drand DST
-        let dst = Bytes::from_slice(&env, b"BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_");
-        let hashed_point = env.crypto().bls12_381().hash_to_g1(&message, &dst);
-
-        // Step 5: Check hashed point in G1 subgroup
-        if !env.crypto().bls12_381().g1_is_in_subgroup(&hashed_point) {
-            return false;
-        }
-
-        // Step 6: Deserialize drand public key (G2 point, 192 bytes uncompressed)
-        if drand_public_key.len() != 192 {
-            return false;
-        }
-        let pubkey_bytes: BytesN<192> = match drand_public_key.try_into() {
-            Ok(b) => b,
-            Err(_) => return false,
-        };
-        let drand_pubkey = G2Affine::from_bytes(pubkey_bytes);
-
-        // Step 7: Check public key in G2 subgroup
-        if !env.crypto().bls12_381().g2_is_in_subgroup(&drand_pubkey) {
-            return false;
-        }
-
-        // Step 8: Get G2 generator
-        let g2_gen_bytes: BytesN<192> = BytesN::from_array(
-            &env,
-            &[
-                // x_c1 (48 bytes)
-                0x13, 0xe0, 0x2b, 0x60, 0x52, 0x71, 0x9f, 0x60, 0x7d, 0xac, 0xd3, 0xa0, 0x88, 0x27,
-                0x4f, 0x65, 0x59, 0x6b, 0xd0, 0xd0, 0x99, 0x20, 0xb6, 0x1a, 0xb5, 0xda, 0x61, 0xbb,
-                0xdc, 0x7f, 0x50, 0x49, 0x33, 0x4c, 0xf1, 0x12, 0x13, 0x94, 0x5d, 0x57, 0xe5, 0xac,
-                0x7d, 0x05, 0x5d, 0x04, 0x2b, 0x7e, // x_c0 (48 bytes)
-                0x02, 0x4a, 0xa2, 0xb2, 0xf0, 0x8f, 0x0a, 0x91, 0x26, 0x08, 0x05, 0x27, 0x2d, 0xc5,
-                0x10, 0x51, 0xc6, 0xe4, 0x7a, 0xd4, 0xfa, 0x40, 0x3b, 0x02, 0xb4, 0x51, 0x0b, 0x64,
-                0x7a, 0xe3, 0xd1, 0x77, 0x0b, 0xac, 0x03, 0x26, 0xa8, 0x05, 0xbb, 0xef, 0xd4, 0x80,
-                0x56, 0xc8, 0xc1, 0x21, 0xbd, 0xb8, // y_c1 (48 bytes)
-                0x06, 0x06, 0xc4, 0xa0, 0x2e, 0xa7, 0x34, 0xcc, 0x32, 0xac, 0xd2, 0xb0, 0x2b, 0xc2,
-                0x8b, 0x99, 0xcb, 0x3e, 0x28, 0x7e, 0x85, 0xa7, 0x63, 0xaf, 0x26, 0x74, 0x92, 0xab,
-                0x57, 0x2e, 0x99, 0xab, 0x3f, 0x37, 0x0d, 0x27, 0x5c, 0xec, 0x1d, 0xa1, 0xaa, 0xa9,
-                0x07, 0x5f, 0xf0, 0x5f, 0x79, 0xbe, // y_c0 (48 bytes)
-                0x0c, 0xe5, 0xd5, 0x27, 0x72, 0x7d, 0x6e, 0x11, 0x8c, 0xc9, 0xcd, 0xc6, 0xda, 0x2e,
-                0x35, 0x1a, 0xad, 0xfd, 0x9b, 0xaa, 0x8c, 0xbd, 0xd3, 0xa7, 0x6d, 0x42, 0x9a, 0x69,
-                0x51, 0x60, 0xd1, 0x2c, 0x92, 0x3a, 0xc9, 0xcc, 0x3b, 0xac, 0xa2, 0x89, 0xe1, 0x93,
-                0x54, 0x86, 0x08, 0xb8, 0x28, 0x01,
-            ],
-        );
-        let g2_gen = G2Affine::from_bytes(g2_gen_bytes);
-
-        // Step 9: Pairing verification
-        // Verify: e(signature, G2_gen) == e(H(msg), pubkey)
-        // Using pairing_check: e(-sig, G2_gen) * e(H(msg), pubkey) == 1
-        // We negated the signature before deserializing it
-
-        let mut g1_points = Vec::new(&env);
-        g1_points.push_back(neg_sig_point); // -signature (negated earlier)
-        g1_points.push_back(hashed_point); // H(msg)
-
-        let mut g2_points = Vec::new(&env);
-        g2_points.push_back(g2_gen); // G2 generator
-        g2_points.push_back(drand_pubkey); // drand public key
-
-        // Perform pairing check: e(-sig, G2_gen) * e(H(msg), pubkey) == 1
-        env.crypto().bls12_381().pairing_check(g1_points, g2_points)
-    }
-
-    // ========== END BLS12-381 DEBUG HELPERS ==========
 }
 
 /// Negate a G1 point by negating its y-coordinate
@@ -836,13 +698,7 @@ impl GeneSplicer {
         let pubkey_bytes: BytesN<192> = drand_pubkey_bytes
             .try_into()
             .unwrap_or_else(|_| panic!("Public key must be exactly 192 bytes"));
-        let drand_pubkey = G2Affine::from_bytes(pubkey_bytes.clone());
-
-        // Test: Verify byte order by round-tripping
-        let re = drand_pubkey.to_bytes();
-        if re.to_array() != pubkey_bytes.to_array() {
-            panic!("G2 PK byte order mismatch");
-        }
+        let drand_pubkey = G2Affine::from_bytes(pubkey_bytes);
 
         // Subgroup check on public key
         if !env.crypto().bls12_381().g2_is_in_subgroup(&drand_pubkey) {
