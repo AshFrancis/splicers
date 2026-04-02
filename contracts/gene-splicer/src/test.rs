@@ -435,3 +435,135 @@ fn test_constructor_rejects_wrong_pubkey_length() {
         (&admin, &xlm_token.address, 10u64, true, bad_pubkey),
     );
 }
+
+// ===== Batch query tests =====
+
+#[test]
+fn test_get_cartridges_batch() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let xlm_token = create_xlm_token(&env, &admin);
+    xlm_token.mint(&user, &100_000_000);
+
+    let client = setup_contract(&env, &admin, &xlm_token.address, true);
+
+    // Mint 3 cartridges
+    let id1 = client.splice_genome(&user);
+    let id2 = client.splice_genome(&user);
+    let id3 = client.splice_genome(&user);
+
+    // Batch fetch all 3
+    let mut ids = soroban_sdk::Vec::new(&env);
+    ids.push_back(id1);
+    ids.push_back(id2);
+    ids.push_back(id3);
+
+    let results = client.get_cartridges_batch(&ids);
+    assert_eq!(results.len(), 3);
+    assert_eq!(results.get(0).unwrap().unwrap().id, 1);
+    assert_eq!(results.get(1).unwrap().unwrap().id, 2);
+    assert_eq!(results.get(2).unwrap().unwrap().id, 3);
+
+    // Batch fetch with nonexistent ID
+    let mut ids_with_missing = soroban_sdk::Vec::new(&env);
+    ids_with_missing.push_back(id1);
+    ids_with_missing.push_back(999u32);
+
+    let results2 = client.get_cartridges_batch(&ids_with_missing);
+    assert_eq!(results2.len(), 2);
+    assert!(results2.get(0).unwrap().is_some());
+    assert!(results2.get(1).unwrap().is_none());
+}
+
+#[test]
+fn test_get_creatures_batch() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let xlm_token = create_xlm_token(&env, &admin);
+    xlm_token.mint(&user, &100_000_000);
+
+    let client = setup_contract(&env, &admin, &xlm_token.address, true);
+
+    // Mint and finalize 2 cartridges
+    let id1 = client.splice_genome(&user);
+    let id2 = client.splice_genome(&user);
+
+    let c1 = client.get_cartridge(&id1).unwrap();
+    let c2 = client.get_cartridge(&id2).unwrap();
+    let (r, sc, su) = create_mock_entropy(&env);
+    let (r2, sc2, su2) = create_mock_entropy(&env);
+
+    client.finalize_splice(&id1, &c1.splice_round, &r, &sc, &su);
+    client.finalize_splice(&id2, &c2.splice_round, &r2, &sc2, &su2);
+
+    // Batch fetch
+    let mut ids = soroban_sdk::Vec::new(&env);
+    ids.push_back(id1);
+    ids.push_back(id2);
+
+    let results = client.get_creatures_batch(&ids);
+    assert_eq!(results.len(), 2);
+    assert_eq!(results.get(0).unwrap().unwrap().id, id1);
+    assert_eq!(results.get(1).unwrap().unwrap().id, id2);
+}
+
+// ===== Admin setter tests =====
+
+#[test]
+fn test_set_skin_count() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let xlm_token = create_xlm_token(&env, &admin);
+
+    let client = setup_contract(&env, &admin, &xlm_token.address, true);
+
+    assert_eq!(client.get_skin_count(), 10);
+
+    client.set_skin_count(&20u64);
+    assert_eq!(client.get_skin_count(), 20);
+}
+
+#[test]
+fn test_set_drand_public_key() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let xlm_token = create_xlm_token(&env, &admin);
+
+    let client = setup_contract(&env, &admin, &xlm_token.address, true);
+
+    // Original is 192 zero bytes
+    let original = client.get_drand_public_key();
+    assert_eq!(original.len(), 192);
+
+    // Update to different 192-byte key
+    let new_key = Bytes::from_array(&env, &[0xff; 192]);
+    client.set_drand_public_key(&new_key);
+    assert_eq!(client.get_drand_public_key(), new_key);
+}
+
+#[test]
+#[should_panic(expected = "Drand public key must be 192 bytes")]
+fn test_set_drand_public_key_wrong_length() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let xlm_token = create_xlm_token(&env, &admin);
+
+    let client = setup_contract(&env, &admin, &xlm_token.address, true);
+
+    let bad_key = Bytes::from_array(&env, &[0xff; 96]);
+    client.set_drand_public_key(&bad_key);
+}

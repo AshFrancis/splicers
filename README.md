@@ -168,18 +168,15 @@ splicers/
 1. **Splice Genome** (`splice_genome()`):
    - Player pays 1 XLM fee
    - Receives Genome Cartridge NFT with cosmetic skin (generated via Soroban PRNG)
-   - Contract stores the drand round number for future entropy
+   - Contract assigns a future drand round number to prevent frontrunning
 
-2. **Submit Entropy** (`submit_entropy()`):
-   - Off-chain relayer fetches drand quicknet entropy
-   - Submits round, randomness, and BLS signature to contract
-   - Contract performs full BLS12-381 verification (CAP-0059)
-
-3. **Finalize Splice** (`finalize_splice()`):
-   - Permissionless function anyone can call
-   - Uses verified drand entropy to select genes (head, body, legs)
+2. **Finalize Splice** (`finalize_splice()`):
+   - User fetches drand entropy client-side and decompresses BLS12-381 points
+   - Submits round, randomness, compressed + uncompressed signatures to contract
+   - Contract verifies BLS12-381 signature on-chain (CAP-0059)
+   - Uses verified entropy to select genes (head, body, legs)
    - Each gene has rarity: Legendary (10%), Rare (30%), Normal (60%)
-   - Burns Genome Cartridge and mints final Creature NFT
+   - Marks Genome Cartridge as finalized and mints Creature NFT
 
 ### BLS12-381 Verification (CAP-0059)
 

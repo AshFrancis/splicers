@@ -38,12 +38,8 @@ export default defineConfig(() => {
       globals: true,
       environment: "happy-dom",
       setupFiles: ["./src/test/setup.ts"],
-      exclude: ["**/node_modules/**"],
-      css: {
-        modules: {
-          classNameStrategy: "non-scoped",
-        },
-      },
+      exclude: ["**/node_modules/**", "server/**"],
+      css: false,
       coverage: {
         provider: "v8",
         reporter: ["text", "json", "html"],
