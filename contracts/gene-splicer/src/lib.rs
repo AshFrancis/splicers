@@ -550,9 +550,9 @@ impl GeneSplicer {
         env.storage()
             .instance()
             .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
-        // Also extend the contract's WASM code entry
+        // Also extend the WASM code entry (separate TTL from instance)
         env.deployer()
-            .extend_ttl_for_contract_instance(env.current_contract_address(), TTL_THRESHOLD, TTL_EXTEND_TO);
+            .extend_ttl_for_code(env.current_contract_address(), TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     /// Get current dev mode status
