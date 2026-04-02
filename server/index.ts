@@ -1,5 +1,6 @@
 import { keepAlive } from "./keepAlive";
 import { pinCreature } from "./pinning";
+import { logger } from "./log";
 
 const PORT = process.env.PORT || 3001;
 
@@ -32,9 +33,7 @@ setInterval(() => {
   }
 }, 5 * 60_000);
 
-function validatePinInput(
-  body: unknown,
-):
+function validatePinInput(body: unknown):
   | {
       valid: true;
       data: {
@@ -92,21 +91,21 @@ function validatePinInput(
 }
 
 async function startKeepAlive() {
-  console.log("[keep-alive] Running initial TTL extension...");
+  logger.info("keep-alive", "Running initial TTL extension");
   try {
     await keepAlive();
-    console.log("[keep-alive] Initial TTL extension complete");
+    logger.info("keep-alive", "Initial TTL extension complete");
   } catch (e) {
-    console.error("[keep-alive] Initial TTL extension failed:", e);
+    logger.error("keep-alive", "Initial TTL extension failed", e);
   }
 
   setInterval(async () => {
-    console.log("[keep-alive] Running scheduled TTL extension...");
+    logger.info("keep-alive", "Running scheduled TTL extension");
     try {
       await keepAlive();
-      console.log("[keep-alive] TTL extension complete");
+      logger.info("keep-alive", "TTL extension complete");
     } catch (e) {
-      console.error("[keep-alive] TTL extension failed:", e);
+      logger.error("keep-alive", "TTL extension failed", e);
     }
   }, KEEP_ALIVE_INTERVAL);
 }
@@ -163,7 +162,7 @@ const server = Bun.serve({
         const result = await pinCreature(validation.data);
         return Response.json(result, { headers: corsHeaders });
       } catch (e: unknown) {
-        console.error("[pin-creature] Error:", e);
+        logger.error("pin-creature", "Pinning failed", e);
         return Response.json(
           { error: "Pinning failed" },
           { status: 500, headers: corsHeaders },
@@ -184,7 +183,7 @@ const server = Bun.serve({
         await keepAlive();
         return Response.json({ status: "ok" }, { headers: corsHeaders });
       } catch (e: unknown) {
-        console.error("[keep-alive] Error:", e);
+        logger.error("keep-alive", "Manual trigger failed", e);
         return Response.json(
           { error: "Keep-alive failed" },
           { status: 500, headers: corsHeaders },
@@ -199,5 +198,5 @@ const server = Bun.serve({
   },
 });
 
-console.log(`[splicers-server] Listening on port ${server.port}`);
+logger.info("server", `Listening on port ${server.port}`);
 startKeepAlive();

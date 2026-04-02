@@ -155,10 +155,15 @@ export async function fetchLatestDrandEntropy(): Promise<DrandRound> {
   };
 }
 
+// Cache drand rounds (immutable once produced)
+const drandCache = new Map<number, DrandRound>();
+
 /**
- * Fetch drand entropy for a specific round
+ * Fetch drand entropy for a specific round (cached — rounds are immutable)
  */
 export async function fetchDrandEntropy(round: number): Promise<DrandRound> {
+  const cached = drandCache.get(round);
+  if (cached) return cached;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
   const response = await fetch(`${DRAND_QUICKNET_URL}/public/${round}`, {
@@ -171,11 +176,13 @@ export async function fetchDrandEntropy(round: number): Promise<DrandRound> {
   }
 
   const data = (await response.json()) as DrandApiResponse;
-  return {
+  const result: DrandRound = {
     round: data.round,
     randomness: data.randomness,
     signature: data.signature,
   };
+  drandCache.set(round, result);
+  return result;
 }
 
 /**

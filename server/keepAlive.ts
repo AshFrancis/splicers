@@ -32,6 +32,7 @@ export async function keepAlive() {
     throw new Error(`stellar CLI failed (exit ${exitCode}): ${stderr}`);
   }
 
-  console.log("[keep-alive] stdout:", stdout.trim());
+  const { logger } = await import("./log");
+  logger.info("keep-alive", "TTL extended", { stdout: stdout.trim() });
   return { success: true };
 }

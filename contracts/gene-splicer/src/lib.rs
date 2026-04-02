@@ -292,6 +292,23 @@ impl GeneSplicer {
         env.storage().instance().set(&DataKey::Admin, &new_admin);
     }
 
+    /// Update cartridge skin count (admin-only)
+    pub fn set_skin_count(env: Env, new_count: u64) {
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("Admin not configured");
+        admin.require_auth();
+        env.storage().instance().set(&DataKey::CartridgeSkinCount, &new_count);
+    }
+
+    /// Update drand public key (admin-only, 192 bytes uncompressed G2)
+    pub fn set_drand_public_key(env: Env, new_key: Bytes) {
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("Admin not configured");
+        admin.require_auth();
+        if new_key.len() != 192 {
+            panic!("Drand public key must be 192 bytes (uncompressed G2 affine coordinates)");
+        }
+        env.storage().instance().set(&DataKey::DrandPublicKey, &new_key);
+    }
+
     /// Get number of available cartridge skins
     pub fn get_skin_count(env: Env) -> u64 {
         env.storage()

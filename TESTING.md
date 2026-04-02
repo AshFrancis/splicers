@@ -1,88 +1,45 @@
-# Testing Infrastructure
-
-## Overview
-
-This project has a comprehensive testing setup covering contract tests, unit tests, and E2E tests.
-
-## Test Stack
-
-- **Vitest**: Unit and integration testing framework
-- **React Testing Library**: Component testing utilities
-- **Happy DOM**: Fast DOM environment for tests
-- **Playwright**: E2E testing (see e2e/ directory)
+# Testing
 
 ## Running Tests
 
 ```bash
-# Unit/Integration Tests
-npm test              # Run all unit tests
-npm run test:watch    # Watch mode
-npm run test:ui       # Vitest UI
-npm run test:coverage # Coverage report
+# Contract tests (Rust)
+cargo test
 
-# E2E Tests
-npm run test:e2e       # Run Playwright tests
-npm run test:e2e:ui    # Playwright UI
-npm run test:e2e:debug # Debug mode
+# Frontend tests (TypeScript)
+npm test
+
+# BLS12-381 integration test (requires deployed contract + stellar CLI)
+bash scripts/testBLS12381.sh
 ```
 
-## Test Structure
+## Test Coverage
 
-### Contract Tests (Rust)
+### Contract Tests (`contracts/gene-splicer/src/test.rs`)
 
-- **Location**: `contracts/gene-splicer/src/test.rs`
-- **Coverage**: Full contract functionality including BLS verification
-- **Run**: `cargo test` in contract directory
+14 tests covering:
 
-### Unit/Integration Tests (TypeScript)
+- **Minting**: splice_genome, multiple splices, insufficient balance
+- **Finalization**: finalize_splice with mock entropy (dev_mode), double finalization, wrong round, nonexistent cartridge
+- **Input validation**: wrong randomness length, wrong compressed sig length, wrong uncompressed sig length
+- **Admin**: admin getter/setter, config getters
+- **TTL**: extend_ttl permissionless call
+- **Constructor**: rejects wrong pubkey length
 
-- **Location**: `src/**/*.test.{ts,tsx}`
-- **Setup**: `src/test/setup.ts`
-- **Utilities**: `src/test/test-utils.tsx`
-- **Mocks**: `src/test/mocks/`
+Tests use `dev_mode=true` to skip BLS verification. Full BLS verification is tested via `scripts/testBLS12381.sh` with live drand data against a deployed contract.
 
-### E2E Tests (Playwright)
+### Frontend Tests (`src/services/entropyRelayer.test.ts`)
 
-- **Location**: `e2e/`
-- **Coverage**: Full user flows on local Stellar network
-- **Prerequisites**:
-  - Local Stellar network running
-  - Contract deployed with dev_mode=true
-  - Test wallet with funded account
-- **Manual Testing**: See instructions in `e2e/cartridge-lifecycle.spec.ts`
+19 tests covering:
 
-## Test Utilities
+- Hex conversion utilities
+- G1 point decompression (48 -> 96 bytes)
+- Drand API fetching (with timeout, error handling)
 
-### renderWithProviders
+### What's Not Tested
 
-Renders React components with all necessary providers (React Query, Router):
+- React components (GenomeSplicer, BattleArena, CreatureRenderer)
+- Wallet provider integration
+- End-to-end user flows
 
-```typescript
-import { renderWithProviders, screen } from "../test/test-utils";
-
-test("renders component", () => {
-  renderWithProviders(<MyComponent />);
-  expect(screen.getByText("Hello")).toBeInTheDocument();
-});
-```
-
-### Mock Helpers
-
-- `src/test/mocks/wallet.ts` - Wallet mocking utilities
-- `src/test/mocks/contract.ts` - Contract client mocks
-
-## Known Issues
-
-Component tests for React 19 with Stellar Design System need additional configuration.
-E2E tests with Playwright are the recommended approach for integration testing.
-
-## Coverage
-
-Vitest coverage excludes:
-
-- `node_modules/`
-- `src/debug/` (scaffold code)
-- Config files
-- Test snapshots
-
-Target: 70%+ coverage for custom code (excluding scaffold)
+These are tested manually via the `/debug` route in development.

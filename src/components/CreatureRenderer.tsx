@@ -1,6 +1,10 @@
 import React, { useEffect } from "react";
 import type { Creature } from "gene_splicer";
 
+// Animation constants
+const CREATURE_RENDER_SCALE = 0.4;
+const ARM_PIVOT_OFFSET = 80; // px from center for arm rotation origin
+
 type AttackType = "punch" | "kick" | "headbutt" | null;
 
 interface CreatureRendererProps {
@@ -253,7 +257,10 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
         : side === "left"
           ? "idle-arm-swing"
           : "idle-arm-swing-reverse";
-    const transformOrigin = side === "left" ? "80px -20px" : "-80px -20px";
+    const transformOrigin =
+      side === "left"
+        ? `${ARM_PIVOT_OFFSET}px -20px`
+        : `-${ARM_PIVOT_OFFSET}px -20px`;
 
     return (
       <div
@@ -341,7 +348,7 @@ export const CreatureRenderer: React.FC<CreatureRendererProps> = ({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        transform: "scale(0.4)",
+        transform: `scale(${CREATURE_RENDER_SCALE})`,
         transformOrigin: "top center",
         // CSS custom properties for animation variation
         ["--head-y" as string]: `${headY}px`,

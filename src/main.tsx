@@ -24,17 +24,9 @@ document.documentElement.classList.remove("sds-theme-light");
 document.body.classList.add("sds-theme-dark");
 document.body.classList.remove("sds-theme-light");
 
-// Keep watching in case SDS tries to override
-const observer = new MutationObserver(() => {
-  if (document.body.classList.contains("sds-theme-light")) {
-    document.body.classList.remove("sds-theme-light");
-    document.body.classList.add("sds-theme-dark");
-  }
-});
-observer.observe(document.body, {
-  attributes: true,
-  attributeFilter: ["class"],
-});
+// SDS theme is set via localStorage and class attributes above.
+// If SDS overrides persist, set data attribute as a fallback.
+document.documentElement.dataset.sdsTheme = "dark";
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>

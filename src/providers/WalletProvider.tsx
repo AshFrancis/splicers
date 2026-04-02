@@ -146,12 +146,11 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
           updateState({ ...a, ...n });
         }
       } catch (e) {
-        // If `getNetwork` or `getAddress` throw errors... sign the user out???
         nullify();
-        // then log the error (instead of throwing) so we have visibility
-        // into the error while working on Scaffold Stellar but we do not
-        // crash the app process
-        console.error(e);
+        console.error(
+          "[WalletProvider] Wallet connection error, signed out:",
+          e,
+        );
       } finally {
         popupLock.current = false;
       }
