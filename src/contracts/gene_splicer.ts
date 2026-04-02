@@ -1,9 +1,8 @@
 import * as Client from 'gene_splicer';
 import { rpcUrl, networkPassphrase } from './util';
 
-// CRITICAL: Contract ID must be updated in .env after EVERY deployment!
-// The auto-generated TypeScript bindings cannot be relied upon for staging/production.
-// Always use PUBLIC_GENE_SPLICER_CONTRACT_ID from .env as the single source of truth.
+// Contract ID is read from PUBLIC_GENE_SPLICER_CONTRACT_ID in .env (local dev)
+// and from TESTNET_CONTRACT_ID GitHub secret (CI/CD deployments).
 const contractId = import.meta.env.PUBLIC_GENE_SPLICER_CONTRACT_ID;
 
 if (!contractId) {

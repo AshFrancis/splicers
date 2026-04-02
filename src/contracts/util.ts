@@ -107,13 +107,6 @@ export async function createGeneSplicerClient(publicKey: string) {
     );
   }
 
-  console.log(
-    "[createGeneSplicerClient] Write client using contract ID:",
-    contractId,
-    "Network:",
-    stellarNetwork,
-  );
-
   return new GeneSplicerModule.Client({
     networkPassphrase,
     contractId,
