@@ -94,10 +94,28 @@ sleep 2
 HEALTH=$(ssh root@178.156.244.26 "curl -sf http://localhost:3001/health" 2>/dev/null || echo "FAILED")
 echo "  Server health: $HEALTH"
 
-# Verify
+# Smoke test: verify contract is functional
 echo ""
-echo "=== Redeployment Complete ==="
-echo "Contract ID: $CONTRACT_ID"
-echo "WASM hash:   $WASM_HASH"
-echo ""
-echo "Verify: stellar contract invoke --id $CONTRACT_ID --network testnet --source testnet-user -- get_dev_mode"
+echo "=== Smoke Test ==="
+DEV_MODE=$(stellar contract invoke --id "$CONTRACT_ID" --network testnet --source testnet-user -- get_dev_mode 2>&1 | tail -1)
+echo "  get_dev_mode: $DEV_MODE"
+
+SKIN_COUNT=$(stellar contract invoke --id "$CONTRACT_ID" --network testnet --source testnet-user -- get_skin_count 2>&1 | tail -1)
+echo "  get_skin_count: $SKIN_COUNT"
+
+TTL_RESULT=$(stellar contract invoke --id "$CONTRACT_ID" --network testnet --source testnet-user --send=yes -- extend_ttl 2>&1 | tail -1)
+echo "  extend_ttl: submitted"
+
+if [ "$DEV_MODE" = "false" ] && [ "$SKIN_COUNT" = "10" ]; then
+  echo ""
+  echo "=== Redeployment Complete ==="
+  echo "Contract ID: $CONTRACT_ID"
+  echo "WASM hash:   $WASM_HASH"
+  echo "XLM token:   $XLM_TOKEN"
+else
+  echo ""
+  echo "=== WARNING: Smoke test returned unexpected values ==="
+  echo "Expected dev_mode=false, got: $DEV_MODE"
+  echo "Expected skin_count=10, got: $SKIN_COUNT"
+  exit 1
+fi
