@@ -20,6 +20,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Upgrade npm
+        run: npm install -g npm@11
       - uses: actions/cache@v3
         with:
           path: |
