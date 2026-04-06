@@ -27,8 +27,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Upgrade npm
-        run: npm install -g npm@11
+      - name: Enable corepack
+        run: corepack enable
 
       - name: Install dependencies
         run: npm ci
