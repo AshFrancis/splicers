@@ -1,0 +1,29 @@
+name: deploy-pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - name: build (PUBLIC_* only — all public blockchain config)
+        env:
+          PUBLIC_STELLAR_NETWORK: ${{ vars.PUBLIC_STELLAR_NETWORK }}
+          PUBLIC_STELLAR_NETWORK_PASSPHRASE: ${{ vars.PUBLIC_STELLAR_NETWORK_PASSPHRASE }}
+          PUBLIC_STELLAR_HORIZON_URL: ${{ vars.PUBLIC_STELLAR_HORIZON_URL }}
+          PUBLIC_STELLAR_RPC_URL: ${{ vars.PUBLIC_STELLAR_RPC_URL }}
+          PUBLIC_GENE_SPLICER_CONTRACT_ID: ${{ vars.PUBLIC_GENE_SPLICER_CONTRACT_ID }}
+        run: npm run build
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=splicers
